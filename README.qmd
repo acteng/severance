@@ -200,5 +200,5 @@ mrn_srn_high = sf::st_read("mrn_srn_high.gpkg")
 tm_shape(mrn_srn) +
   tm_lines(col = "grey") +
   tm_shape(mrn_srn_high) +
-  tm_lines(col = "infrastructure_type")
+  tm_lines(col = "infrastructure_type", palette = "Set1")
 ```
