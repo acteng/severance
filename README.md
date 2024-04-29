@@ -20,7 +20,6 @@ After downloading and combining the datasets, we can combine them and
 plot them as follows with R:
 
 ``` r
-# waldo::compare(names(mrn), names(srn))
 mrn_srn = rbind(mrn, srn)
 mrn_srn |>
   ggplot() +
@@ -37,43 +36,13 @@ cycling potential from the Propensity to Cycle Tool (PCT) data. We’ll
 aggregate to 1 km resolution so the operations work fast for national
 data, as a starter for 10, and smooth the data to remove noise.
 
-``` r
-if (!file.exists("pct_rnet.gpkg")) {
-  remotes::install_cran("pct")
-  pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
-  pct_projected = pct_rnet |>
-    sf::st_transform(27700)
-  pct_projected$segment_length_km = sf::st_length(pct_projected) / 1000 |>
-    as.numeric()
-  pct_projected = pct_projected |>
-    mutate(
-      cycling_km_baseline = bicycle * segment_length_km,
-      cycling_km_go_dutch = dutch_slc * segment_length_km
-    )
-  sf::write_sf(pct_projected, "pct.gpkg", delete_dsn = TRUE)
-}
-```
-
-    Skipping install of 'pct' from a cran remote, the SHA1 (0.9.9) has not changed since last install.
-      Use `force = TRUE` to force installation
-
-    Loading required package: sp
-
-``` r
-pct = sf::st_read("pct.gpkg")
-```
-
     Reading layer `pct' from data source 
       `/home/robin/github/acteng/severance/pct.gpkg' using driver `GPKG'
     Simple feature collection with 558173 features and 10 fields
     Geometry type: LINESTRING
     Dimension:     XY
-    Bounding box:  xmin: 136412.2 ymin: 14072.62 xmax: 655160.5 ymax: 654381.5
+    Bounding box:  xmin: 136416.3 ymin: 14073.94 xmax: 655158.9 ymax: 654381.8
     Projected CRS: OSGB36 / British National Grid
-
-``` r
-names(pct)
-```
 
      [1] "local_id"            "bicycle"             "govtarget_slc"      
      [4] "govnearmkt_slc"      "gendereq_slc"        "dutch_slc"          
@@ -83,13 +52,30 @@ names(pct)
 We’ll convert the pct linestring data to a 1 km raster grid with the
 {terra} package.
 
-``` r
-library(terra)
-pct_raster = terra::rast(pct, res = 5000)
-# ?rasterize
-pct_raster = terra::rasterize(pct, pct_raster, field = "cycling_km_baseline", fun = sum)
-plot(pct_raster, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
-```
+    terra 1.7.71
+
+    WARNING: different compile-time and run-time versions of GEOS
+
+    Compiled with:3.11.1-CAPI-1.17.1
+
+     Running with:3.12.1-CAPI-1.18.1
+
+
+    You should reinstall package 'terra'
+
+
+    Attaching package: 'terra'
+
+    The following object is masked from 'package:tidyr':
+
+        extract
+
+    Breaking News: tmap 3.x is retiring. Please test v4, e.g. with
+    remotes::install_github('r-tmap/tmap')
+
+    Warning: Values have found that are higher than the highest break
+
+    Warning: Values have found that are higher than the highest break
 
 ![](README_files/figure-commonmark/pct-raster-1.png)
 
@@ -97,7 +83,20 @@ We can subset all grids with high cycling potential (e.g. 5000 km
 cycling potential) and extract nearby roads to calculate severance as
 follows:
 
-``` r
-# pct_raster_high = pct_raster > 5000
-# pct_raster_high_sf = terra::as.points(pct_raster_high)
-```
+    Reading layer `pct_raster_sf' from data source 
+      `/home/robin/github/acteng/severance/pct_raster_sf.gpkg' using driver `GPKG'
+    Simple feature collection with 5671 features and 1 field
+    Geometry type: POINT
+    Dimension:     XY
+    Bounding box:  xmin: 138912.2 ymin: 16572.62 xmax: 653912.2 ymax: 651572.6
+    Projected CRS: OSGB36 / British National Grid
+
+    Reading layer `mrn_srn_high' from data source 
+      `/home/robin/github/acteng/severance/mrn_srn_high.gpkg' using driver `GPKG'
+    Simple feature collection with 58782 features and 5 fields
+    Geometry type: MULTILINESTRING
+    Dimension:     XY
+    Bounding box:  xmin: 163626.3 ymin: 40666.12 xmax: 655180 ymax: 588278
+    Projected CRS: OSGB36 / British National Grid
+
+![](README_files/figure-commonmark/severance-1.png)

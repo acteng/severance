@@ -3,6 +3,7 @@ title: "Calculating active travel potential and severance around major transport
 format: gfm
 execute: 
   cache: true
+  echo: false
 ---
 
 ```{r}
@@ -113,7 +114,7 @@ After downloading and combining the datasets, we can combine them and plot them 
 
 ```{r}
 #| label: combine-srn-mrn
-# waldo::compare(names(mrn), names(srn))
+#| echo: true
 mrn_srn = rbind(mrn, srn)
 mrn_srn |>
   ggplot() +
@@ -128,7 +129,7 @@ We'll aggregate to 1 km resolution so the operations work fast for national data
 
 ```{r}
 #| label: dl-pct
-if (!file.exists("pct_rnet.gpkg")) {
+if (!file.exists("pct.gpkg")) {
   remotes::install_cran("pct")
   pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
   pct_projected = pct_rnet |>
@@ -154,14 +155,50 @@ We'll convert the pct linestring data to a 1 km raster grid with the {terra} pac
 library(terra)
 pct_raster = terra::rast(pct, res = 5000)
 # ?rasterize
-pct_raster = terra::rasterize(pct, pct_raster, field = "cycling_km_baseline", fun = sum)
-plot(pct_raster, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
+pct_raster_baseline = terra::rasterize(pct, pct_raster, field = "cycling_km_baseline", fun = sum)
+pct_raster_go_dutch = terra::rasterize(pct, pct_raster, field = "cycling_km_go_dutch", fun = sum)
+# par(mfrow = c(1, 2))
+# plot(pct_raster_baseline, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
+# plot(pct_raster_go_dutch, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
+# par(mfrow = c(1, 1))
+brks = c(0, 1, 5, 10, 20, 100)*1000
+library(tmap)
+m1 = tm_shape(pct_raster_baseline) +
+  tm_raster("cycling_km_baseline", palette = "viridis", breaks = brks)
+m2 = tm_shape(pct_raster_go_dutch) +
+  tm_raster("cycling_km_go_dutch", palette = "viridis", breaks = brks)
+tmap_arrange(m1, m2)
 ```
 
 We can subset all grids with high cycling potential (e.g. 5000 km cycling potential) and extract nearby roads to calculate severance as follows:
 
 ```{r}
+#| cache: false
+if (!file.exists("pct_raster_sf.gpkg")) {
+
+pct_raster_sf = pct_raster_go_dutch |>
+  terra::as.points() |>
+  sf::st_as_sf()
+sf::st_write(pct_raster_sf, "pct_raster_sf.gpkg", delete_dsn = TRUE)
+}
+pct_raster_sf = sf::st_read("pct_raster_sf.gpkg")
+
+```
+
+```{r}
 #| label: severance
-# pct_raster_high = pct_raster > 5000
-# pct_raster_high_sf = terra::as.points(pct_raster_high)
+pct_high_potential_points = pct_raster_sf |>
+  filter(cycling_km_go_dutch > 5000)
+pct_high_buffer = pct_high_potential_points |>
+  sf::st_buffer(5000) |>
+  sf::st_union() 
+if (!file.exists("mrn_srn_high.gpkg")) {
+mrn_srn_high = mrn_srn[pct_high_buffer, ]
+sf::write_sf(mrn_srn_high, "mrn_srn_high.gpkg", delete_dsn = TRUE)
+}
+mrn_srn_high = sf::st_read("mrn_srn_high.gpkg")
+tm_shape(mrn_srn) +
+  tm_lines(col = "grey") +
+  tm_shape(mrn_srn_high) +
+  tm_lines(col = "infrastructure_type")
 ```
