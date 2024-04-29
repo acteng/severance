@@ -38,11 +38,11 @@ if (!file.exists("mrn.gpkg")) {
   unzip(f)
   mrn = sf::st_read("Major_Road_Network_2018_Open_Roads.shp")
   names(mrn)
-#  [1] "fid_"       "id"         "endNode"    "startNode"  "roadNumber"
-#  [6] "roadNameTO" "fictitious" "roadClassi" "roadFuncti" "formOfWay" 
-# [11] "length"     "length_uom" "loop"       "primaryRou" "trunkRoad" 
-# [16] "roadClas_1" "name1"      "name1_lang" "name2"      "name2_lang"
-# [21] "roadStruct" "geom_Lengt" "identifier" "geom" 
+  #  [1] "fid_"       "id"         "endNode"    "startNode"  "roadNumber"
+  #  [6] "roadNameTO" "fictitious" "roadClassi" "roadFuncti" "formOfWay"
+  # [11] "length"     "length_uom" "loop"       "primaryRou" "trunkRoad"
+  # [16] "roadClas_1" "name1"      "name1_lang" "name2"      "name2_lang"
+  # [21] "roadStruct" "geom_Lengt" "identifier" "geom"
   mrn = mrn |>
     transmute(
       name = name1,
@@ -50,7 +50,7 @@ if (!file.exists("mrn.gpkg")) {
       form_of_way = formOfWay,
       road_classification = roadClassi,
       infrastructure_type = "MRN"
-      )
+    )
   sf::st_write(mrn, "mrn.gpkg", delete_dsn = TRUE)
   # Release data:
   if (FASLE) {
@@ -78,17 +78,17 @@ if (!file.exists("srn.gpkg")) {
   # srn = sf::read_sf("Data/oproad_gb.gpkg", query = q) # failed:
   open_roads_national = sf::read_sf("Data/oproad_gb.gpkg", layer = "road_link")
   names(open_roads_national)
-#    [1] "id"                         "fictitious"                
-#  [3] "road_classification"        "road_function"             
-#  [5] "form_of_way"                "road_classification_number"
-#  [7] "name_1"                     "name_1_lang"               
-#  [9] "name_2"                     "name_2_lang"               
-# [11] "road_structure"             "length"                    
-# [13] "length_uom"                 "loop"                      
-# [15] "primary_route"              "trunk_road"                
-# [17] "start_node"                 "end_node"                  
-# [19] "road_number_toid"           "road_name_toid"            
-# [21] "geometry"  
+  #    [1] "id"                         "fictitious"
+  #  [3] "road_classification"        "road_function"
+  #  [5] "form_of_way"                "road_classification_number"
+  #  [7] "name_1"                     "name_1_lang"
+  #  [9] "name_2"                     "name_2_lang"
+  # [11] "road_structure"             "length"
+  # [13] "length_uom"                 "loop"
+  # [15] "primary_route"              "trunk_road"
+  # [17] "start_node"                 "end_node"
+  # [19] "road_number_toid"           "road_name_toid"
+  # [21] "geometry"
   table(open_roads_national$trunk_road)
   srn = open_roads_national |>
     filter(trunk_road) |>
@@ -98,7 +98,7 @@ if (!file.exists("srn.gpkg")) {
       form_of_way = form_of_way,
       road_classification = road_classification,
       infrastructure_type = "SRN"
-      )
+    )
 
   sf::write_sf(srn, "srn.gpkg", delete_dsn = TRUE)
   # Release data:
@@ -129,16 +129,13 @@ We'll aggregate to 1 km resolution so the operations work fast for national data
 ```{r}
 #| label: dl-pct
 if (!file.exists("pct_rnet.gpkg")) {
-
-remotes::install_cran("pct")
-pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
-pct_projected = pct_rnet |>
-  sf::st_transform(27700) 
-sf::write_sf(pct_projected, "pct_rnet.gpkg", delete_dsn = TRUE)
-  
+  remotes::install_cran("pct")
+  pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
+  pct_projected = pct_rnet |>
+    sf::st_transform(27700)
+  sf::write_sf(pct_projected, "pct_rnet.gpkg", delete_dsn = TRUE)
 } else {
   pct_projected = sf::st_read("pct_rnet.gpkg")
-
 }
 ```
 
@@ -147,5 +144,4 @@ We'll convert the pct linestring data to a 1 km raster grid with the {terra} pac
 ```{r}
 #| label: pct-raster
 library(terra)
-
 ```
