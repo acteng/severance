@@ -4,6 +4,8 @@ format: gfm
 execute: 
   cache: true
   echo: false
+  message: false
+  warning: false
 ---
 
 ```{r}
@@ -37,7 +39,7 @@ if (!file.exists("mrn.gpkg")) {
   f = basename(u)
   if (!file.exists(f)) download.file(u, f)
   unzip(f)
-  mrn = sf::st_read("Major_Road_Network_2018_Open_Roads.shp")
+  mrn = sf::read_sf("Major_Road_Network_2018_Open_Roads.shp")
   names(mrn)
   #  [1] "fid_"       "id"         "endNode"    "startNode"  "roadNumber"
   #  [6] "roadNameTO" "fictitious" "roadClassi" "roadFuncti" "formOfWay"
@@ -60,7 +62,7 @@ if (!file.exists("mrn.gpkg")) {
     system("gh release upload v1.0 mrn.gpkg --clobber")
   }
 }
-mrn = sf::st_read("mrn.gpkg")
+mrn = sf::read_sf("mrn.gpkg")
 ```
 
 ```{r}
@@ -107,10 +109,10 @@ if (!file.exists("srn.gpkg")) {
     system("gh release upload v1.0 srn.gpkg --clobber")
   }
 }
-srn = sf::st_read("srn.gpkg")
+srn = sf::read_sf("srn.gpkg")
 ```
 
-After downloading and combining the datasets, we can combine them and plot them as follows with R:
+After downloading and combining the datasets, we can plot them as follows with R:
 
 ```{r}
 #| label: combine-srn-mrn
@@ -143,7 +145,7 @@ if (!file.exists("pct.gpkg")) {
     )
   sf::write_sf(pct_projected, "pct.gpkg", delete_dsn = TRUE)
 }
-pct = sf::st_read("pct.gpkg")
+pct = sf::read_sf("pct.gpkg")
 names(pct)
 ```
 
@@ -181,7 +183,7 @@ pct_raster_sf = pct_raster_go_dutch |>
   sf::st_as_sf()
 sf::st_write(pct_raster_sf, "pct_raster_sf.gpkg", delete_dsn = TRUE)
 }
-pct_raster_sf = sf::st_read("pct_raster_sf.gpkg")
+pct_raster_sf = sf::read_sf("pct_raster_sf.gpkg")
 
 ```
 
@@ -196,7 +198,7 @@ if (!file.exists("mrn_srn_high.gpkg")) {
 mrn_srn_high = mrn_srn[pct_high_buffer, ]
 sf::write_sf(mrn_srn_high, "mrn_srn_high.gpkg", delete_dsn = TRUE)
 }
-mrn_srn_high = sf::st_read("mrn_srn_high.gpkg")
+mrn_srn_high = sf::read_sf("mrn_srn_high.gpkg")
 tm_shape(mrn_srn) +
   tm_lines(col = "grey") +
   tm_shape(mrn_srn_high) +
