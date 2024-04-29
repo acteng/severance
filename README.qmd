@@ -133,15 +133,35 @@ if (!file.exists("pct_rnet.gpkg")) {
   pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
   pct_projected = pct_rnet |>
     sf::st_transform(27700)
-  sf::write_sf(pct_projected, "pct_rnet.gpkg", delete_dsn = TRUE)
-} else {
-  pct_projected = sf::st_read("pct_rnet.gpkg")
+  pct_projected$segment_length_km = sf::st_length(pct_projected) / 1000 |>
+    as.numeric()
+  pct_projected = pct_projected |>
+    mutate(
+      cycling_km_baseline = bicycle * segment_length_km,
+      cycling_km_go_dutch = dutch_slc * segment_length_km
+    )
+  sf::write_sf(pct_projected, "pct.gpkg", delete_dsn = TRUE)
 }
+pct = sf::st_read("pct.gpkg")
+names(pct)
 ```
 
 We'll convert the pct linestring data to a 1 km raster grid with the {terra} package.
 
 ```{r}
 #| label: pct-raster
+#| layout-ncol: 2
 library(terra)
+pct_raster = terra::rast(pct, res = 5000)
+# ?rasterize
+pct_raster = terra::rasterize(pct, pct_raster, field = "cycling_km_baseline", fun = sum)
+plot(pct_raster, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
+```
+
+We can subset all grids with high cycling potential (e.g. 5000 km cycling potential) and extract nearby roads to calculate severance as follows:
+
+```{r}
+#| label: severance
+# pct_raster_high = pct_raster > 5000
+# pct_raster_high_sf = terra::as.points(pct_raster_high)
 ```
