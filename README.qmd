@@ -5,6 +5,11 @@ execute:
   cache: true
 ---
 
+```{r}
+#| include: false
+library(tidyverse)
+```
+
 This repo builds on work documented in the [srn](https://github.com/acteng/srn) repo, focussing on active travel potential and severance around major transport infrastructure.
 
 # Input datasets
@@ -14,3 +19,98 @@ This repo builds on work documented in the [srn](https://github.com/acteng/srn) 
 The Strategic Road Network (SRN) and Major Road Network (MRN) are illustrated below (source: [browse tool of ATIP](https://acteng.github.io/atip/browse.html?style=dataviz#6.2/52.917/-1.327)).
 
 ![](images/paste-1.png)
+
+
+```{r}
+#| label: dl-mrn
+#| include: false
+if (!file.exists("mrn.gpkg")) {
+  message("Missing the MRN dataset locally, download it from the DfT or releases")
+  u = "https://maps.dft.gov.uk/major-road-network-shapefile/Major_Road_Network_2018_Open_Roads.zip"
+  f = basename(u)
+  if (!file.exists(f)) download.file(u, f)
+  unzip(f)
+  mrn = sf::st_read("Major_Road_Network_2018_Open_Roads.shp")
+  names(mrn)
+#  [1] "fid_"       "id"         "endNode"    "startNode"  "roadNumber"
+#  [6] "roadNameTO" "fictitious" "roadClassi" "roadFuncti" "formOfWay" 
+# [11] "length"     "length_uom" "loop"       "primaryRou" "trunkRoad" 
+# [16] "roadClas_1" "name1"      "name1_lang" "name2"      "name2_lang"
+# [21] "roadStruct" "geom_Lengt" "identifier" "geom" 
+  mrn = mrn |>
+    transmute(
+      name = name1,
+      road_function = roadFuncti,
+      form_of_way = formOfWay,
+      road_classification = roadClassi,
+      infrastructure_type = "MRN"
+      )
+  sf::st_write(mrn, "mrn.gpkg", delete_dsn = TRUE)
+  # Release data:
+  if (FASLE) {
+    # system("gh release create v1.0 mrn.gpkg")
+    # Re-upload with clobber
+    system("gh release upload v1.0 mrn.gpkg --clobber")
+  }
+}
+mrn = sf::st_read("mrn.gpkg")
+```
+
+```{r}
+#| label: dl-srn
+#| include: false
+if (!file.exists("srn.gpkg")) {
+  message("Missing the SRN dataset locally, download it from the DfT or releases")
+  u = "https://api.os.uk/downloads/v1/products/OpenRoads/downloads?area=GB&format=GeoPackage&redirect"
+  f = "oproad_gpkg_gb.zip"
+  if (!file.exists(f)) download.file(u, f)
+  unzip(f)
+  list.files("Data")
+  # See https://github.com/acteng/atip-data-prep/blob/d2a5d0058932a00e0130048cf407448f4b75a477/layers/srn.py#L6
+  # for filter:             "SELECT name_1 as name, geometry FROM road_link WHERE trunk_road"
+  # q = "SELECT name_1 as name, geometry FROM road_link WHERE trunk_road"
+  # srn = sf::read_sf("Data/oproad_gb.gpkg", query = q) # failed:
+  open_roads_national = sf::read_sf("Data/oproad_gb.gpkg", layer = "road_link")
+  names(open_roads_national)
+#    [1] "id"                         "fictitious"                
+#  [3] "road_classification"        "road_function"             
+#  [5] "form_of_way"                "road_classification_number"
+#  [7] "name_1"                     "name_1_lang"               
+#  [9] "name_2"                     "name_2_lang"               
+# [11] "road_structure"             "length"                    
+# [13] "length_uom"                 "loop"                      
+# [15] "primary_route"              "trunk_road"                
+# [17] "start_node"                 "end_node"                  
+# [19] "road_number_toid"           "road_name_toid"            
+# [21] "geometry"  
+  table(open_roads_national$trunk_road)
+  srn = open_roads_national |>
+    filter(trunk_road) |>
+    transmute(
+      name = name_1,
+      road_function = road_function,
+      form_of_way = form_of_way,
+      road_classification = road_classification,
+      infrastructure_type = "SRN"
+      )
+
+  sf::write_sf(srn, "srn.gpkg", delete_dsn = TRUE)
+  # Release data:
+  if (FASLE) {
+    system("gh release upload v1.0 srn.gpkg --clobber")
+  }
+}
+srn = sf::st_read("srn.gpkg")
+```
+
+After downloading and combining the datasets, we can combine them and plot them as follows with R:
+
+```{r}
+#| label: combine-srn-mrn
+# waldo::compare(names(mrn), names(srn))
+mrn_srn = rbind(mrn, srn)
+mrn_srn |>
+  ggplot() +
+  geom_sf(aes(color = infrastructure_type)) +
+  theme_void()
+```
