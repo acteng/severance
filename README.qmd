@@ -10,6 +10,12 @@ execute:
 library(tidyverse)
 ```
 
+```{r}
+#| eval: false
+#| echo: false
+remotes::install_github("robinlovelace/styler.equals")
+```
+
 This repo builds on work documented in the [srn](https://github.com/acteng/srn) repo, focussing on active travel potential and severance around major transport infrastructure.
 
 # Input datasets
@@ -113,4 +119,33 @@ mrn_srn |>
   ggplot() +
   geom_sf(aes(color = infrastructure_type)) +
   theme_void()
+```
+
+# Active travel potential
+
+As a first approximation of active travel potential, we'll calculate cycling potential from the Propensity to Cycle Tool (PCT) data.
+We'll aggregate to 1 km resolution so the operations work fast for national data, as a starter for 10, and smooth the data to remove noise.
+
+```{r}
+#| label: dl-pct
+if (!file.exists("pct_rnet.gpkg")) {
+
+remotes::install_cran("pct")
+pct_rnet = pct::get_pct(layer = "rnet", national = TRUE)
+pct_projected = pct_rnet |>
+  sf::st_transform(27700) 
+sf::write_sf(pct_projected, "pct_rnet.gpkg", delete_dsn = TRUE)
+  
+} else {
+  pct_projected = sf::st_read("pct_rnet.gpkg")
+
+}
+```
+
+We'll convert the pct linestring data to a 1 km raster grid with the {terra} package.
+
+```{r}
+#| label: pct-raster
+library(terra)
+
 ```
