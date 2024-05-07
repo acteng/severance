@@ -286,23 +286,29 @@ tmap_arrange(m1, m2)
 Let's pre-process the roads into named groups, that we'll use to identify segments with high potential:
 
 ```{r}
-# summary(sf::st_length(srn_joined))
+#| include: false
+summary(sf::st_length(srn_joined))
     # Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
     # 0.02    45.42   142.10   388.39   405.19 19085.20 
-srn_filtered = srn_joined 
-  # |>
+summary(srn_joined$cycling_km_go_dutch)
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+  #   0.0   715.7  2445.1  5009.3  7171.3 50691.6   11102 
+srn_filtered = srn_joined |>
   # filter(length_m > 200) |>
-  # filter(cycling_km_go_dutch > 2000) |>
+  filter(cycling_km_go_dutch > 2000) |>
+  # Create categorical variable with cycling potential split into 10 categories:
   # filter(!is.na(name))
-# srn_filtered$group = stplanr::rnet_group(srn_filtered)
+  # Quantiles of cycling potential:
+  mutate(cycling_km_go_dutch_quantile = cut(cycling_km_go_dutch, breaks = quantile(cycling_km_go_dutch, probs = seq(0, 1, 0.1), na.rm = TRUE), include.lowest = TRUE, labels = FALSE)) 
+summary(srn_filtered$cycling_km_go_dutch_quantile)
+srn_filtered$group = stplanr::rnet_group(srn_filtered)
 # srn_filtered$group_fast = stplanr::rnet_group(srn_filtered, igraph::cluster_fast_greedy)
 # walktrap grouping:
 # srn_filtered$group_walktrap = stplanr::rnet_group(srn_filtered, igraph::cluster_walktrap)
 # summary(srn_filtered$group_walktrap)
 srn_grouped = srn_filtered |>
-  mutate(name = ifelse(is.na(name), "Unnamed", name)) |>
   # mutate(Name = paste(road_classification_number, name, group_walktrap, sep = " ")) |>
-  mutate(Name = paste(road_classification_number, name, sep = " ")) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "Unnamed", name), group, cycling_km_go_dutch_quantile, sep = " ")) |>
    # group_by(name, road_classification_number, road_function, form_of_way, road_classification) |>
   group_by(Name) |>
   summarise(
@@ -312,8 +318,14 @@ srn_grouped = srn_filtered |>
     .groups = "drop"
   ) |>
   filter(segment_length > 1000)
-  # |>
+head(srn_grouped$Name)  
+# |>
   # sf::st_cast("LINESTRING")
+```
+
+```{r}
+#| eval: false
+# failed attempt to split the lines (fails as they require LINESTRING geometry type input)
 srn_grouped |>
   sf::st_geometry_type() |>
   table()
@@ -322,23 +334,21 @@ srn_grouped_linestring = srn_grouped |>
 srn_grouped_linestring |>
   sf::st_geometry_type() |>
   table()
-srn_grouped_linestring |>
-  sf::st_geometry_type()  
-  |>
-  sf::st_cast("LINESTRING")
+# srn_grouped_linestring |>
+#   sf::st_cast("LINESTRING") |>
+#   select(Name) |>
+#   plot()
 ?st_cast
-# nrow(srn_grouped) # 540
-summary(srn_grouped_linestring$geom)
-# summary(sf::st_length(srn_grouped))
-#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#    1002    1751    3597   26440   18331  483252 
-
-srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000)
+# srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000, use_rsgeo = FALSE)
 # nrow(srn_grouped_split) # 1414
 srn_grouped_split$id_km = formatC(seq(nrow(srn_grouped_split)), flag = "00", width = 4)
 head(srn_grouped_split$id_km)
 srn_grouped_split = srn_grouped_split |>
   mutate(Name = paste(Name, id_km))
+```
+
+```{r}
+#| eval: false
 m1 = srn_grouped |>
   tm_shape() +
   tm_lines(col = "Name", legend = FALSE)
@@ -362,6 +372,7 @@ srn_top = srn_grouped |>
 srn_top$Name
 summary(sf::st_length(srn_top))
 summary(srn_top$cycling_km_go_dutch)
+summary(sf::st_length(srn_top))
 
 # Split the SRN:
 
