@@ -19,29 +19,6 @@ ATIP](https://acteng.github.io/atip/browse.html?style=dataviz#6.2/52.917/-1.327)
 After downloading and combining the datasets, we can plot them as
 follows with R:
 
-``` r
-mrn_srn = rbind(mrn, srn)
-# mrn_srn |>
-#   ggplot() +
-#   geom_sf(aes(color = infrastructure_type)) +
-#   theme_void() 
-names(mrn_srn)
-```
-
-    [1] "name"                "road_function"       "form_of_way"        
-    [4] "road_classification" "infrastructure_type" "geom"               
-
-``` r
-mrn |>
-  tm_shape() +
-  tm_lines(col = "grey") +
-  tm_shape(srn) +
-  tm_lines() +
-  tm_title("SRN (black) and MRN (grey)", just = c("center", "top"))
-```
-
-![](README_files/figure-commonmark/combine-srn-mrn-1.png)
-
 The main focus of the analysis presented in this report is the SRN, the
 road network controlled by National Highways (NH).
 
@@ -75,3 +52,17 @@ cycling potential) and extract nearby roads to calculate severance as
 follows:
 
 ![](README_files/figure-commonmark/severance-1.png)
+
+Building on the simplistic approach, we’ll assign active travel
+potential to each road segment based on the values of the ‘active travel
+potential cells’ that they intersect with. This approach is illustrated
+below (a logical extension of this approach would be to use PCT section
+centroids as the basis for road active travel potential values):
+
+![](README_files/figure-commonmark/unnamed-chunk-10-1.png)
+
+![](README_files/figure-commonmark/unnamed-chunk-10-2.png)
+
+Let’s identify the roads with the highest active travel potential:
+
+![](README_files/figure-commonmark/unnamed-chunk-11-1.png)
