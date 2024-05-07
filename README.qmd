@@ -283,7 +283,7 @@ m2 = tm_shape(srn_joined) +
 tmap_arrange(m1, m2)
 ```
 
-Let's identify the roads with the highest active travel potential:
+Let's pre-process the roads into named groups, that we'll use to identify segments with high potential:
 
 ```{r}
 # summary(sf::st_length(srn_joined))
@@ -312,9 +312,43 @@ srn_grouped = srn_filtered |>
     .groups = "drop"
   ) |>
   filter(segment_length > 1000)
-nrow(srn_grouped)
-plot(sf::st_geometry(srn_grouped))
+  # |>
+  # sf::st_cast("LINESTRING")
+srn_grouped |>
+  sf::st_geometry_type() |>
+  table()
+srn_grouped_linestring = srn_grouped |>
+  sf::st_line_merge()
+srn_grouped_linestring |>
+  sf::st_geometry_type() |>
+  table()
+srn_grouped_linestring |>
+  sf::st_geometry_type()  
+  |>
+  sf::st_cast("LINESTRING")
+?st_cast
+# nrow(srn_grouped) # 540
+summary(srn_grouped_linestring$geom)
 # summary(sf::st_length(srn_grouped))
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#    1002    1751    3597   26440   18331  483252 
+
+srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000)
+# nrow(srn_grouped_split) # 1414
+srn_grouped_split$id_km = formatC(seq(nrow(srn_grouped_split)), flag = "00", width = 4)
+head(srn_grouped_split$id_km)
+srn_grouped_split = srn_grouped_split |>
+  mutate(Name = paste(Name, id_km))
+m1 = srn_grouped |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+m2 = srn_grouped_split |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+tmap_arrange(m1, m2)  
+```
+
+```{r}
 # look at roads with greatest length
 # srn_grouped |>
 #   arrange(desc(segment_length)) |>
@@ -330,7 +364,6 @@ summary(sf::st_length(srn_top))
 summary(srn_top$cycling_km_go_dutch)
 
 # Split the SRN:
-srn_top_split = stplanr::line_segment(srn_top, segment_length = 1000)
 
 # summary(duplicated(srn_top$name))
 pvars = c("Name", "cycling_km_go_dutch", "segment_length") 
