@@ -8,7 +8,7 @@ potential and severance around major transport infrastructure.
 
 # Input datasets
 
-## SRN and MRN
+## Major road network
 
 The Strategic Road Network (SRN) and Major Road Network (MRN) are
 illustrated below (source: [browse tool of
@@ -21,27 +21,51 @@ follows with R:
 
 ``` r
 mrn_srn = rbind(mrn, srn)
-mrn_srn |>
-  ggplot() +
-  geom_sf(aes(color = infrastructure_type)) +
-  theme_void()
+# mrn_srn |>
+#   ggplot() +
+#   geom_sf(aes(color = infrastructure_type)) +
+#   theme_void() 
+names(mrn_srn)
+```
+
+    [1] "name"                "road_function"       "form_of_way"        
+    [4] "road_classification" "infrastructure_type" "geom"               
+
+``` r
+mrn |>
+  tm_shape() +
+  tm_lines(col = "grey") +
+  tm_shape(srn) +
+  tm_lines() +
+  tm_title("SRN (black) and MRN (grey)", just = c("center", "top"))
 ```
 
 ![](README_files/figure-commonmark/combine-srn-mrn-1.png)
 
+The main focus of the analysis presented in this report is the SRN, the
+road network controlled by National Highways (NH).
+
+## Active travel potential
+
+Data on active travel potential was taken from the Propensity to Cycle
+Tool (PCT), a Department for Transport funded project that builds on
+official data to model cycling potential nationwide. In future we would
+like to add data representing walking potential, possibly based on
+travel to school data.
+
 # Active travel potential
 
-As a first approximation of active travel potential, we’ll calculate
-cycling potential from the Propensity to Cycle Tool (PCT) data. We’ll
-aggregate to 1 km resolution so the operations work fast for national
-data, as a starter for 10, and smooth the data to remove noise.
+As a first approximation of active travel potential, we calculated
+cycling potential from the Propensity to Cycle Tool (PCT) data. To
+ensure consistency across areas, we defined ‘cycling potential’ in this
+case as the distance that could be cycled *within* each grid cell,
+reducing the influence of variable road lengths on the results (10 100 m
+segments with cycling potential of 20 has the same impact as a single 5
+km segment with cycling potential of 20 trips per day). We’ll aggregate
+to 5 km resolution so the operations work fast for national data, as a
+starter for 10, and smooth the data to remove noise.
 
-     [1] "local_id"            "bicycle"             "govtarget_slc"      
-     [4] "govnearmkt_slc"      "gendereq_slc"        "dutch_slc"          
-     [7] "ebike_slc"           "segment_length_km"   "cycling_km_baseline"
-    [10] "cycling_km_go_dutch" "geom"               
-
-We’ll convert the pct linestring data to a 1 km raster grid with the
+We’ll convert the pct linestring data to a 5 km raster grid with the
 {terra} package.
 
 ![](README_files/figure-commonmark/pct-raster-1.png)

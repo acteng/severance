@@ -118,7 +118,7 @@ After downloading and combining the datasets, we can plot them as follows with R
 
 ```{r}
 #| label: combine-srn-mrn
-#| echo: true
+#| include: false
 mrn_srn = rbind(mrn, srn)
 # mrn_srn |>
 #   ggplot() +
@@ -163,7 +163,6 @@ if (!file.exists("pct.gpkg")) {
   sf::write_sf(pct_projected, "pct.gpkg", delete_dsn = TRUE)
 }
 pct = sf::read_sf("pct.gpkg")
-names(pct)
 ```
 
 We'll convert the pct linestring data to a 5 km raster grid with the {terra} package.
@@ -181,9 +180,9 @@ pct_raster_go_dutch = terra::rasterize(pct, pct_raster, field = "cycling_km_go_d
 # par(mfrow = c(1, 1))
 brks = c(0, 1, 5, 10, 20, 100)*1000
 m1 = tm_shape(pct_raster_baseline) +
-  tm_raster("cycling_km_baseline", palette = "viridis", breaks = brks)
+  tm_raster("cycling_km_baseline", palette = "viridis", breaks = brks, title = "Baseline (km/day)")
 m2 = tm_shape(pct_raster_go_dutch) +
-  tm_raster("cycling_km_go_dutch", palette = "viridis", breaks = brks)
+  tm_raster("cycling_km_go_dutch", palette = "viridis", breaks = brks, title = "Go Dutch (km/day)")
 tmap_arrange(m1, m2)
 ```
 
@@ -220,3 +219,4 @@ tm_shape(mrn_srn) +
   tm_lines(col = "infrastructure_type", palette = "Set1")
 ```
 
+Building on the simplistic approach, we'll assign active travel potential to each road segment based on the values of the 'active travel potential cells' that they intersect with.
