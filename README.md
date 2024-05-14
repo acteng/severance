@@ -2,6 +2,9 @@
 
 # Calculating active travel potential and severance around major transport infrastructure
 
+Note: an interactive version of this report is available
+[here](https://acteng.github.io/severance/severance.html).
+
 This repo builds on work documented in the
 [srn](https://github.com/acteng/srn) repo, focussing on active travel
 potential and severance around major transport infrastructure.
