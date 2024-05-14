@@ -315,9 +315,21 @@ srn_grouped = srn_filtered |>
     cycling_km_baseline = mean(cycling_km_baseline, na.rm = TRUE),
     cycling_km_go_dutch = mean(cycling_km_go_dutch, na.rm = TRUE),
     segment_length = round(sum(length_m)),
+    name = first(name),
+    road_classification_number = first(road_classification_number),
     .groups = "drop"
   ) |>
-  filter(segment_length > 1000)
+  group_by(name, road_classification_number) |>
+  arrange(desc(cycling_km_go_dutch)) |>
+  mutate(id = as.character(row_number())) |>
+  # Update id so that it's "" if there's only 1 in that group:
+  mutate(id = ifelse(n() == 1, "", id)) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "Unnamed", name), id, sep = " ")) |>
+  # Remove whitespace before and after Name:
+  mutate(Name = trimws(Name)) |>
+  filter(segment_length > 1000) |>
+  ungroup() |>
+  arrange(desc(cycling_km_go_dutch))
 head(srn_grouped$Name)  
 # |>
   # sf::st_cast("LINESTRING")
@@ -358,6 +370,8 @@ m2 = srn_grouped_split |>
 tmap_arrange(m1, m2)  
 ```
 
+The top 100 roads are as follows:
+
 ```{r}
 # look at roads with greatest length
 # srn_grouped |>
@@ -365,14 +379,14 @@ tmap_arrange(m1, m2)
 #   select(name, segment_length) |>
 #   head(10)
 srn_top = srn_grouped |>
-  arrange(desc(cycling_km_go_dutch)) |>
-  # We could add form_of_way etc back in
   select(Name, segment_length, cycling_km_baseline, cycling_km_go_dutch) |>
   head(100)
-srn_top$Name
-summary(sf::st_length(srn_top))
-summary(srn_top$cycling_km_go_dutch)
-summary(sf::st_length(srn_top))
+srn_top |>
+  knitr::kable()
+# srn_top$Name
+# summary(sf::st_length(srn_top))
+# summary(srn_top$cycling_km_go_dutch)
+# summary(sf::st_length(srn_top))
 
 # Split the SRN:
 
@@ -384,7 +398,10 @@ m_top_srn = tm_shape(srn_filtered) +
   tm_lines(col = "cycling_km_go_dutch", title = "Go Dutch (km/day)", lwd = 8, popup.vars = pvars, col.scale = tm_scale(breaks = c(10, 15, 25, 50) * 1000, values = "viridis"))
 m_top_srn
 tmap_save(m_top_srn, "m_top_srn.html")
+system("gh release upload v1.0 m_top_srn.html --clobber")
 ```
+
+The interactive map can be viewed by downloading the file at the following link: https://github.com/acteng/severance/releases/download/v1.0/m_top_srn.html
 
 
 ```{r}
