@@ -449,9 +449,18 @@ browseURL("m_top_srn.html")
 
 # Desire lines approach
 
+The results presented in the previous section are based on estimates of active travel (commuter cycling) potential at the road network level in the vicinity (around 5 km) of each road segment.
+This approach is good for a 'first pass' national analysis but has limitations:
+
+- There is no guarantee that the active travel on the segments in the vicinity of the roads need to interact with the roads, e.g. they could just run parallel to them.
+- The approach leads to estimates of cycling potential in units that are not conducive to benefits estimation.
+- The approach does not take into account the desire lines of cyclists, which may not follow the road network.
+
+
 
 ```{r}
-#| eval: false
+# include: false
+if (!file.exists("pct_desire_lines.gpkg")) {
 pct_desire_lines = pct::get_pct(layer = "l", national = TRUE)
 sf::write_sf(pct_desire_lines, "pct_desire_lines.gpkg", delete_dsn = TRUE)
 system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
@@ -459,23 +468,10 @@ if(!file.exists("pct_desire_lines.gpkg")) {
   message("Download the desire lines data from the releases")
   stop()
 }
+}
 pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
-system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
+dim(pct_desire_lines)
 names(pct_desire_lines)
-pct_desire_lines$pct_desire_lines_computed = pct::uptake_pct_godutch_2020(
-  distance = pct_desire_lines$rf_dist_km,
-  gradient = pct_desire_lines$rf_avslope_perc
-)
-pct_desire_lines = pct_desire_lines |>
-  
-# correlation between computed and observed:
-cor(pct_desire_lines$pct_desire_lines_computed, pct_desire_lines$dutch_slc / pct_desire_lines$all)
-pct_desire_lines |>
-  sample_n(10000) |>
-  ggplot(aes(rf_dist_km, dutch_slc / all)) +
-  geom_point() +
-  geom_smooth() 
-pct_desire_lines_high 
 ```
 
 
@@ -543,3 +539,24 @@ sf::st_write(srn_split, "srn_split.gpkg", delete_dsn = TRUE)
 system("gh release upload v1.0 srn_split.gpkg --clobber")
 ```
 
+
+<!-- ## Demo PCT modelling: -->
+
+
+```{r}
+#| eval: false
+pct_desire_lines$pct_desire_lines_computed = pct::uptake_pct_godutch_2020(
+  distance = pct_desire_lines$rf_dist_km,
+  gradient = pct_desire_lines$rf_avslope_perc
+)
+pct_desire_lines = pct_desire_lines |>
+  
+# correlation between computed and observed:
+cor(pct_desire_lines$pct_desire_lines_computed, pct_desire_lines$dutch_slc / pct_desire_lines$all)
+pct_desire_lines |>
+  sample_n(10000) |>
+  ggplot(aes(rf_dist_km, dutch_slc / all)) +
+  geom_point() +
+  geom_smooth() 
+pct_desire_lines_high 
+```
