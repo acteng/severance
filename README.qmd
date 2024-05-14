@@ -25,7 +25,7 @@ This repo builds on work documented in the [srn](https://github.com/acteng/srn) 
 
 # Input datasets
 
-## Major road network
+## Road network data
 
 The Strategic Road Network (SRN) and Major Road Network (MRN) are illustrated below (source: [browse tool of ATIP](https://acteng.github.io/atip/browse.html?style=dataviz#6.2/52.917/-1.327)).
 
@@ -147,7 +147,7 @@ mrn |>
 
 The main focus of the analysis presented in this report is the SRN, the road network controlled by National Highways (NH).
 
-## Active travel potential
+## Propensity to cycle tool
 
 Data on active travel potential was taken from the Propensity to Cycle Tool (PCT), a Department for Transport funded project that builds on official data to model cycling potential nationwide.
 In future we would like to add data representing walking potential, possibly based on travel to school data.

@@ -8,7 +8,7 @@ potential and severance around major transport infrastructure.
 
 # Input datasets
 
-## Major road network
+## Road network data
 
 The Strategic Road Network (SRN) and Major Road Network (MRN) are
 illustrated below (source: [browse tool of
@@ -22,7 +22,7 @@ follows with R:
 The main focus of the analysis presented in this report is the SRN, the
 road network controlled by National Highways (NH).
 
-## Active travel potential
+## Propensity to cycle tool
 
 Data on active travel potential was taken from the Propensity to Cycle
 Tool (PCT), a Department for Transport funded project that builds on
