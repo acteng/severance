@@ -449,15 +449,6 @@ browseURL("m_top_srn.html")
 
 # Desire lines approach
 
-The results presented in the previous section are based on estimates of active travel (commuter cycling) potential at the road network level in the vicinity (around 5 km) of each road segment.
-This approach is good for a 'first pass' national analysis but has limitations:
-
-- There is no guarantee that the active travel on the segments in the vicinity of the roads need to interact with the roads, e.g. they could just run parallel to them.
-- The approach leads to estimates of cycling potential in units that are not conducive to benefits estimation.
-- The approach does not take into account the desire lines of cyclists, which may not follow the road network.
-
-
-
 ```{r}
 # include: false
 if (!file.exists("pct_desire_lines.gpkg")) {
@@ -470,12 +461,70 @@ if(!file.exists("pct_desire_lines.gpkg")) {
 }
 }
 pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
-dim(pct_desire_lines)
-names(pct_desire_lines)
+# dim(pct_desire_lines)
+# [1] 1408275     146
+# names(pct_desire_lines)
+#   [1] "id"                      "geo_code1"              
+#   [3] "geo_code2"               "geo_name1"              
+#   [5] "geo_name2"               "lad11cd1"               
+#   [7] "lad11cd2"                "lad_name1"              
+#   [9] "lad_name2"               "all"                    
+#  [11] "bicycle"                 "foot"                   
+#  [13] "car_driver"              "car_passenger"          
+#  [15] "motorbike"               "train_tube"             
+#  [17] "bus"                     "taxi_other"             
+#  [19] "govtarget_slc"           "govtarget_sic"          
+#  [21] "govtarget_slw"           "govtarget_siw"          
+#  [23] "govtarget_sld"           "govtarget_sid"          
+#  [25] "govtarget_slp"           "govtarget_sip"          
+#  [27] "govtarget_slm"           "govtarget_sim"          
+#  [29] "govtarget_slpt"          "govtarget_sipt"         
+#  [31] "govnearmkt_slc"          "govnearmkt_sic" 
+#  ...
+#  [127] "gendereq_sicarkm"        "gendereq_sico2"         
+# [129] "dutch_sicarkm"           "dutch_sico2"            
+# [131] "ebike_sicarkm"           "ebike_sico2"            
+# [133] "e_dist_km"               "rf_dist_km"             
+# [135] "rq_dist_km"              "dist_rf_e"              
+# [137] "dist_rq_rf"              "rf_avslope_perc"        
+# [139] "rq_avslope_perc"         "rf_time_min"            
+# [141] "rq_time_min"             "geom"  
 ```
 
+The results presented in the previous section are based on estimates of active travel (commuter cycling) potential at the road network level in the vicinity (around 5 km) of each road segment.
+This approach is good for a 'first pass' national analysis but has limitations:
 
+- There is no guarantee that the active travel on the segments in the vicinity of the roads need to interact with the roads, e.g. they could just run parallel to them.
+- The approach leads to estimates of cycling potential in units that are not conducive to benefits estimation.
+- The approach does not take into account the desire lines of cyclists, which may not follow the road network.
 
+Using origin-destination data, which can be represented as 'desire lines' between origin and destination points or zones, can address these limitations.
+
+The desire lines approach scales nationally although is more computationally intensive than the road network approach.
+There are `r nrow(pct_desire_lines) |> format(big.mark = ",")`  desire lines in the national dataset from the PCT (compared with `r nrow(pct) |> format(big.mark = ",")` road segments).
+An overview of the desire lines, based on a sample of the top 10,000 desire lines longer than 5km by current active travel mode share, is shown below.
+
+```{r}
+#| label: national-desire-lines-map
+pct_desire_lines = pct_desire_lines |>
+  mutate(
+    `% cycling` = bicycle / all,
+    `% walking` = foot / all,
+    `% car` = (car_driver + car_passenger) / all,
+    `% active` = (`% cycling` + `% walking`) 
+  ) |>
+  # multiply all cols starting with % by 100:
+  mutate(across(starts_with("%"), ~ round(. * 100, 1))) 
+# summary(pct_desire_lines$`% active`)
+brks_active = c(0, 2, 5, 10, 100)
+pct_desire_lines |>
+  # Only those of more than 5 km in length:
+  filter(e_dist_km > 5) |>
+  slice_max(all, n = 10000) |>
+  arrange(`% active`) |>
+  tm_shape() +
+  tm_lines(col = "% active", title = "% Active Travel", tm_scale(breaks = brks_active, values = "viridis"))
+```
 
 
 
