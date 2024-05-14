@@ -83,6 +83,7 @@ if (!file.exists("srn.gpkg")) {
   # srn = sf::read_sf("Data/oproad_gb.gpkg", query = q) # failed:
   open_roads_national = sf::read_sf("Data/oproad_gb.gpkg", layer = "road_link")
   names(open_roads_national)
+  head(table(open_roads_national$road_classification_number))
   #    [1] "id"                         "fictitious"
   #  [3] "road_classification"        "road_function"
   #  [5] "form_of_way"                "road_classification_number"
@@ -98,13 +99,14 @@ if (!file.exists("srn.gpkg")) {
   srn = open_roads_national |>
     filter(trunk_road) |>
     transmute(
+      id,
       name = name_1,
       road_function = road_function,
       form_of_way = form_of_way,
       road_classification = road_classification,
+      road_classification_number = road_classification_number,
       infrastructure_type = "SRN"
     )
-
   sf::write_sf(srn, "srn.gpkg", delete_dsn = TRUE)
   # Release data:
   if (FASLE) {
@@ -112,6 +114,7 @@ if (!file.exists("srn.gpkg")) {
   }
 }
 srn = sf::read_sf("srn.gpkg")
+# names(srn)
 ```
 
 After downloading and combining the datasets, we can plot them as follows with R:
@@ -119,7 +122,16 @@ After downloading and combining the datasets, we can plot them as follows with R
 ```{r}
 #| label: combine-srn-mrn
 #| include: false
-mrn_srn = rbind(mrn, srn)
+mrn_srn = rbind(
+  mrn,
+  srn |> transmute(
+    name = name,
+    road_function = road_function,
+    form_of_way = form_of_way,
+    road_classification = road_classification,
+    infrastructure_type = "SRN"
+  )
+)
 # mrn_srn |>
 #   ggplot() +
 #   geom_sf(aes(color = infrastructure_type)) +
@@ -192,9 +204,20 @@ We can subset all grids with high cycling potential (e.g. 5000 km cycling potent
 #| cache: false
 if (!file.exists("pct_raster_sf.gpkg")) {
 
-pct_raster_sf = pct_raster_go_dutch |>
+
+pct_raster_sf_baseline = pct_raster_baseline |>
   terra::as.points() |>
   sf::st_as_sf()
+pct_raster_sf_go_dutch = pct_raster_go_dutch |>
+  terra::as.points() |>
+  sf::st_as_sf()
+pct_raster_sf = sf::st_sf(
+  data.frame(
+    cycling_km_baseline = pct_raster_sf_baseline$cycling_km_baseline,
+    cycling_km_go_dutch = pct_raster_sf_go_dutch$cycling_km_go_dutch,
+    geometry = pct_raster_sf_baseline$geometry
+  )
+)
 sf::st_write(pct_raster_sf, "pct_raster_sf.gpkg", delete_dsn = TRUE)
 }
 pct_raster_sf = sf::read_sf("pct_raster_sf.gpkg")
@@ -220,3 +243,200 @@ tm_shape(mrn_srn) +
 ```
 
 Building on the simplistic approach, we'll assign active travel potential to each road segment based on the values of the 'active travel potential cells' that they intersect with.
+This approach is illustrated below (a logical extension of this approach would be to use PCT section centroids as the basis for road active travel potential values):
+
+```{r}
+srn_buffer = srn |>
+  sf::st_buffer(5000) |>
+  sf::st_union()
+pct_centroids_near = pct_raster_sf[srn_buffer, ]
+pct_centroids_near |>
+  tm_shape() +
+  tm_dots("cycling_km_go_dutch", palette = "viridis", breaks = brks, title = "Go Dutch (km/day)")
+# centroids for speed of calculation:
+srn$length_m = sf::st_length(srn) |> as.numeric()
+# summary(srn$length_m)
+#     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+#     0.02    45.42   142.10   388.39   405.19 19085.20 
+srn_centroids = sf::st_centroid(srn)
+srn_distances = sf::st_join(
+  srn_centroids,
+  pct_centroids_near,
+  join = sf::st_is_within_distance,
+  dist = 5000
+)
+# summary(duplicated(srn_distances$name))
+srn_distances_aggregated = srn_distances |>
+  sf::st_drop_geometry() |>
+  group_by(id) |>
+  summarise(
+    cycling_km_baseline = mean(cycling_km_baseline, na.rm = TRUE),
+    cycling_km_go_dutch = mean(cycling_km_go_dutch, na.rm = TRUE),
+    .groups = "drop"
+  )
+srn_joined = left_join(srn, srn_distances_aggregated, by = "id")
+# tmap to plot:
+m1 = tm_shape(srn_joined) +
+  tm_lines(col = "cycling_km_go_dutch", title = "Go Dutch (km/day)")
+m2 = tm_shape(srn_joined) +
+  tm_lines("cycling_km_baseline", title = "Baseline (km/day)")
+tmap_arrange(m1, m2)
+```
+
+Let's pre-process the roads into named groups, that we'll use to identify segments with high potential:
+
+```{r}
+#| include: false
+summary(sf::st_length(srn_joined))
+    # Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+    # 0.02    45.42   142.10   388.39   405.19 19085.20 
+summary(srn_joined$cycling_km_go_dutch)
+  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+  #   0.0   715.7  2445.1  5009.3  7171.3 50691.6   11102 
+srn_filtered = srn_joined |>
+  # filter(length_m > 200) |>
+  filter(cycling_km_go_dutch > 2000) |>
+  # Create categorical variable with cycling potential split into 10 categories:
+  # filter(!is.na(name))
+  # Quantiles of cycling potential:
+  mutate(cycling_km_go_dutch_quantile = cut(cycling_km_go_dutch, breaks = quantile(cycling_km_go_dutch, probs = seq(0, 1, 0.1), na.rm = TRUE), include.lowest = TRUE, labels = FALSE)) 
+summary(srn_filtered$cycling_km_go_dutch_quantile)
+srn_filtered$group = stplanr::rnet_group(srn_filtered)
+# srn_filtered$group_fast = stplanr::rnet_group(srn_filtered, igraph::cluster_fast_greedy)
+# walktrap grouping:
+# srn_filtered$group_walktrap = stplanr::rnet_group(srn_filtered, igraph::cluster_walktrap)
+# summary(srn_filtered$group_walktrap)
+srn_grouped = srn_filtered |>
+  # mutate(Name = paste(road_classification_number, name, group_walktrap, sep = " ")) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "Unnamed", name), group, cycling_km_go_dutch_quantile, sep = " ")) |>
+   # group_by(name, road_classification_number, road_function, form_of_way, road_classification) |>
+  group_by(Name) |>
+  summarise(
+    cycling_km_baseline = mean(cycling_km_baseline, na.rm = TRUE),
+    cycling_km_go_dutch = mean(cycling_km_go_dutch, na.rm = TRUE),
+    segment_length = round(sum(length_m)),
+    .groups = "drop"
+  ) |>
+  filter(segment_length > 1000)
+head(srn_grouped$Name)  
+# |>
+  # sf::st_cast("LINESTRING")
+```
+
+```{r}
+#| eval: false
+# failed attempt to split the lines (fails as they require LINESTRING geometry type input)
+srn_grouped |>
+  sf::st_geometry_type() |>
+  table()
+srn_grouped_linestring = srn_grouped |>
+  sf::st_line_merge()
+srn_grouped_linestring |>
+  sf::st_geometry_type() |>
+  table()
+# srn_grouped_linestring |>
+#   sf::st_cast("LINESTRING") |>
+#   select(Name) |>
+#   plot()
+?st_cast
+# srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000, use_rsgeo = FALSE)
+# nrow(srn_grouped_split) # 1414
+srn_grouped_split$id_km = formatC(seq(nrow(srn_grouped_split)), flag = "00", width = 4)
+head(srn_grouped_split$id_km)
+srn_grouped_split = srn_grouped_split |>
+  mutate(Name = paste(Name, id_km))
+```
+
+```{r}
+#| eval: false
+m1 = srn_grouped |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+m2 = srn_grouped_split |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+tmap_arrange(m1, m2)  
+```
+
+```{r}
+# look at roads with greatest length
+# srn_grouped |>
+#   arrange(desc(segment_length)) |>
+#   select(name, segment_length) |>
+#   head(10)
+srn_top = srn_grouped |>
+  arrange(desc(cycling_km_go_dutch)) |>
+  # We could add form_of_way etc back in
+  select(Name, segment_length, cycling_km_baseline, cycling_km_go_dutch) |>
+  head(100)
+srn_top$Name
+summary(sf::st_length(srn_top))
+summary(srn_top$cycling_km_go_dutch)
+summary(sf::st_length(srn_top))
+
+# Split the SRN:
+
+# summary(duplicated(srn_top$name))
+pvars = c("Name", "cycling_km_go_dutch", "segment_length") 
+m_top_srn = tm_shape(srn_filtered) +
+  tm_lines(col = "darkgrey", lwd = 4) +
+  tm_shape(srn_top) +
+  tm_lines(col = "cycling_km_go_dutch", title = "Go Dutch (km/day)", lwd = 8, popup.vars = pvars, col.scale = tm_scale(breaks = c(10, 15, 25, 50) * 1000, values = "viridis"))
+m_top_srn
+tmap_save(m_top_srn, "m_top_srn.html")
+```
+
+
+```{r}
+#| eval: false
+browseURL("m_top_srn.html")
+```
+
+# Desire lines approach
+
+
+```{r}
+#| eval: false
+pct_desire_lines = pct::get_pct(layer = "l", national = TRUE)
+sf::write_sf(pct_desire_lines, "pct_desire_lines.gpkg", delete_dsn = TRUE)
+system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
+if(!file.exists("pct_desire_lines.gpkg")) {
+  message("Download the desire lines data from the releases")
+  stop()
+}
+pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
+system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
+names(pct_desire_lines)
+pct_desire_lines$pct_desire_lines_computed = pct::uptake_pct_godutch_2020(
+  distance = pct_desire_lines$rf_dist_km,
+  gradient = pct_desire_lines$rf_avslope_perc
+)
+pct_desire_lines = pct_desire_lines |>
+  
+# correlation between computed and observed:
+cor(pct_desire_lines$pct_desire_lines_computed, pct_desire_lines$dutch_slc / pct_desire_lines$all)
+pct_desire_lines |>
+  sample_n(10000) |>
+  ggplot(aes(rf_dist_km, dutch_slc / all)) +
+  geom_point() +
+  geom_smooth() 
+pct_desire_lines_high 
+```
+
+<!-- # Breaking-up SRN into small sections -->
+
+
+```{r}
+#| eval: false
+srn_split = stplanr::line_segment(srn, segment_length = 1000)
+srn_split = stplanr::line_segment(srn, segment_length = 1000, use_rsgeo = FALSE)
+nrow(srn) / nrow(srn_split)
+
+summary(sf::st_length(srn_split))
+summary(sf::st_length(srn))
+plot(srn_split$geometry)
+
+# TODO: use this as an input
+sf::st_write(srn_split, "srn_split.gpkg", delete_dsn = TRUE)
+system("gh release upload v1.0 srn_split.gpkg --clobber")
+```
