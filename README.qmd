@@ -453,6 +453,7 @@ browseURL("m_top_srn.html")
 # include: false
 if (!file.exists("pct_desire_lines.gpkg")) {
 pct_desire_lines = pct::get_pct(layer = "l", national = TRUE)
+sf::st_crs(pct_desire_lines) = 4326
 sf::write_sf(pct_desire_lines, "pct_desire_lines.gpkg", delete_dsn = TRUE)
 system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
 if(!file.exists("pct_desire_lines.gpkg")) {
@@ -489,6 +490,7 @@ pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
 # [137] "dist_rq_rf"              "rf_avslope_perc"        
 # [139] "rq_avslope_perc"         "rf_time_min"            
 # [141] "rq_time_min"             "geom"  
+
 ```
 
 The results presented in the previous section are based on estimates of active travel (commuter cycling) potential at the road network level in the vicinity (around 5 km) of each road segment.
@@ -523,10 +525,46 @@ pct_desire_lines |>
   slice_max(all, n = 10000) |>
   arrange(`% active`) |>
   tm_shape() +
-  tm_lines(col = "% active", title = "% Active Travel", tm_scale(breaks = brks_active, values = "viridis"))
+  tm_lines(
+    col = c("% walking", "% cycling", "% active", "% car"),
+    title = "% Active Travel",
+    tm_scale(breaks = brks_active, values = "viridis"),
+    col.legend = tm_legend(position = tm_pos_out())
+    ) +
+  tm_facets_wrap(ncols = 4)
 ```
 
+Because of the computational resources needed to process the national desire lines dataset, we'll focus on case study areas in this section.
+The ~20k desire lines in the Manchester area are shown below.
 
+```{r}
+dl_mcr = pct_desire_lines |>
+  filter(str_detect(lad_name1, "Manchester")) |>
+  arrange(`% active`) 
+```
+
+```{r}
+srn_wgs = sf::st_transform(srn, 4326)
+sf::st_crs(dl_mcr) = 4326
+srn_mcr = srn_wgs[dl_mcr, ]
+```
+
+```{r}
+
+dl_mcr |>
+  filter(all > 5) |>
+  tm_shape() +
+  tm_lines(
+    col = c("% active"),
+    title = "% Active Travel",
+    tm_scale(breaks = brks_active, values = "viridis"),
+    col.legend = tm_legend(position = tm_pos_out())
+    ) +
+  tm_shape(srn_mcr) +
+  tm_lines(col = "road_classification_number", lwd = 5) +
+  tm_scale_bar() 
+
+```
 
 
 <!-- # Outakes -->
@@ -566,6 +604,7 @@ m2 = srn_grouped_split |>
   tm_shape() +
   tm_lines(col = "Name", legend = FALSE)
 tmap_arrange(m1, m2)  
+
 
 ```
 
