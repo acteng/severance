@@ -1,12 +1,25 @@
 ---
-title: "Calculating active travel potential and severance around major transport infrastructure"
-format: gfm
 execute: 
   cache: true
   echo: false
   message: false
   warning: false
+# format: gfm
+# For sharing interactive results:
+format:
+  html:
+    embed-resources: true
 ---
+
+```{bash}
+#| eval: false
+# rename interactive version of html to severance.html
+cp README.html severance.html
+gh release upload v1.0 severance.html --clobber
+# see https://github.com/acteng/severance/releases/tag/v1.0/severance.html
+```
+
+# Calculating active travel potential and severance around major transport infrastructure
 
 ```{r}
 #| include: false
@@ -19,6 +32,7 @@ library(tmap)
 #| eval: false
 #| echo: false
 remotes::install_github("robinlovelace/styler.equals")
+remotes::install_dev("tmap")
 ```
 
 This repo builds on work documented in the [srn](https://github.com/acteng/srn) repo, focussing on active travel potential and severance around major transport infrastructure.
@@ -109,7 +123,7 @@ if (!file.exists("srn.gpkg")) {
     )
   sf::write_sf(srn, "srn.gpkg", delete_dsn = TRUE)
   # Release data:
-  if (FASLE) {
+  if (FALSE) {
     system("gh release upload v1.0 srn.gpkg --clobber")
   }
 }
@@ -154,9 +168,10 @@ In future we would like to add data representing walking potential, possibly bas
 
 # Active travel potential
 
-As a first approximation of active travel potential, we calculated cycling potential from the Propensity to Cycle Tool (PCT) data.
+As a first approximation of active travel potential we used Propensity to Cycle Tool (PCT) data.
 To ensure consistency across areas, we defined 'cycling potential' in this case as the distance that could be cycled *within* each grid cell, reducing the influence of variable road lengths on the results (10 100 m segments with cycling potential of 20 has the same impact as a single 5 km segment with cycling potential of 20 trips per day).
-We'll aggregate to 5 km resolution so the operations work fast for national data, as a starter for 10, and smooth the data to remove noise.
+Aggregating to 5 km resolution ensures the operations work fast for national data and remove noise from the results.
+Higher levels of spatial resolution could be used in future work.
 
 ```{r}
 #| label: dl-pct
@@ -177,7 +192,7 @@ if (!file.exists("pct.gpkg")) {
 pct = sf::read_sf("pct.gpkg")
 ```
 
-We'll convert the pct linestring data to a 5 km raster grid with the {terra} package.
+<!-- We'll convert the pct linestring data to a 5 km raster grid with the {terra} package. -->
 
 ```{r}
 #| label: pct-raster
@@ -198,7 +213,8 @@ m2 = tm_shape(pct_raster_go_dutch) +
 tmap_arrange(m1, m2)
 ```
 
-We can subset all grids with high cycling potential (e.g. 5000 km cycling potential) and extract nearby roads to calculate severance as follows:
+<!-- We can subset all grids with high cycling potential (e.g. 5000 km cycling potential) and extract nearby roads to calculate severance as follows: -->
+This approach allows identification of sections of the SRN and MRN in areas with high (more than 5000 km cycled within each 5km grid cell under the Go Dutch scenario) active travel potential nationwide, as illustrated below.
 
 ```{r}
 #| cache: false
@@ -239,20 +255,22 @@ mrn_srn_high = sf::read_sf("mrn_srn_high.gpkg")
 tm_shape(mrn_srn) +
   tm_lines(col = "grey") +
   tm_shape(mrn_srn_high) +
-  tm_lines(col = "infrastructure_type", palette = "Set1")
+  tm_lines(col = "infrastructure_type")
 ```
 
-Building on the simplistic approach, we'll assign active travel potential to each road segment based on the values of the 'active travel potential cells' that they intersect with.
-This approach is illustrated below (a logical extension of this approach would be to use PCT section centroids as the basis for road active travel potential values):
+<!-- Building on the simplistic approach, we'll assign active travel potential to each road segment based on the values of the 'active travel potential cells' that they intersect with. -->
+<!-- This approach is illustrated below (a logical extension of this approach would be to use PCT section centroids as the basis for road active travel potential values): -->
+The approach also allows estimation of current and potential future levels of cycling *for every road segment*.
+The results of joining the current estimated and potential cycling values to road segments, taking the mean values of cell centroids that are within 5km of each road segment centroid, are shown below.
 
 ```{r}
 srn_buffer = srn |>
   sf::st_buffer(5000) |>
   sf::st_union()
 pct_centroids_near = pct_raster_sf[srn_buffer, ]
-pct_centroids_near |>
-  tm_shape() +
-  tm_dots("cycling_km_go_dutch", palette = "viridis", breaks = brks, title = "Go Dutch (km/day)")
+# pct_centroids_near |>
+#   tm_shape() +
+#   tm_dots("cycling_km_go_dutch", palette = "viridis", breaks = brks, title = "Go Dutch (km/day)")
 # centroids for speed of calculation:
 srn$length_m = sf::st_length(srn) |> as.numeric()
 # summary(srn$length_m)
@@ -270,37 +288,49 @@ srn_distances_aggregated = srn_distances |>
   sf::st_drop_geometry() |>
   group_by(id) |>
   summarise(
-    cycling_km_baseline = mean(cycling_km_baseline, na.rm = TRUE),
-    cycling_km_go_dutch = mean(cycling_km_go_dutch, na.rm = TRUE),
+    Baseline = mean(cycling_km_baseline, na.rm = TRUE),
+    Potential = mean(cycling_km_go_dutch, na.rm = TRUE),
     .groups = "drop"
   )
 srn_joined = left_join(srn, srn_distances_aggregated, by = "id")
-# tmap to plot:
-m1 = tm_shape(srn_joined) +
-  tm_lines(col = "cycling_km_go_dutch", title = "Go Dutch (km/day)")
-m2 = tm_shape(srn_joined) +
-  tm_lines("cycling_km_baseline", title = "Baseline (km/day)")
-tmap_arrange(m1, m2)
+
+tm_shape(srn_joined) +
+  tm_lines(col = c(
+    "Baseline",
+    "Potential"
+  ),
+  title = "Go Dutch (km/day)",
+  col.scale = tm_scale(breaks = brks, values = "viridis")
+)
 ```
 
-Let's pre-process the roads into named groups, that we'll use to identify segments with high potential:
+Note: the units of the values presented above are in estimated km cycling per day per 5 km grid cell, derived from the route network layer in the PCT, representing active travel potential for utility cycling in the vicinity of roads (estimated commuter cycling potential is a function of number of cyclable trips to work and is a good proxy for utility cycling potential and to a lesser extent leisure cycling potential).
+We assign more meaningful units of estimated number of potential trips in the next section.
+
+After classifying the roads into named groups and keeping only road sections with a level of cycling potential above a certain threshold (2000 km cycled within each 5 km grid cell in the first instance), we filtered out the top n. (e.g. 500) road sections based on cycling potential.
+Roads were grouped in the following ways:
+
+- by road classification number and name (if available)
+- by active travel potential quantile (currently set to 20 quantiles although this can be varied to increase or decrease the number of groups and average length of road sections in each group)
+
+In cases where the same road (e.g. M56) has multiple sections with high cycling potential, the sections are given an id, e.g. M56 1, M56 2 etc.
 
 ```{r}
 #| include: false
 summary(sf::st_length(srn_joined))
     # Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
     # 0.02    45.42   142.10   388.39   405.19 19085.20 
-summary(srn_joined$cycling_km_go_dutch)
+summary(srn_joined$Baseline)
   #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
   #   0.0   715.7  2445.1  5009.3  7171.3 50691.6   11102 
 srn_filtered = srn_joined |>
   # filter(length_m > 200) |>
-  filter(cycling_km_go_dutch > 2000) |>
+  filter(Potential > 2000) |>
   # Create categorical variable with cycling potential split into 10 categories:
   # filter(!is.na(name))
   # Quantiles of cycling potential:
-  mutate(cycling_km_go_dutch_quantile = cut(cycling_km_go_dutch, breaks = quantile(cycling_km_go_dutch, probs = seq(0, 1, 0.1), na.rm = TRUE), include.lowest = TRUE, labels = FALSE)) 
-summary(srn_filtered$cycling_km_go_dutch_quantile)
+  mutate(Potential_quantile = cut(Potential, breaks = quantile(Potential, probs = seq(0, 1, 0.05), na.rm = TRUE), include.lowest = TRUE, labels = FALSE)) 
+summary(srn_filtered$Potential_quantile)
 srn_filtered$group = stplanr::rnet_group(srn_filtered)
 # srn_filtered$group_fast = stplanr::rnet_group(srn_filtered, igraph::cluster_fast_greedy)
 # walktrap grouping:
@@ -308,36 +338,69 @@ srn_filtered$group = stplanr::rnet_group(srn_filtered)
 # summary(srn_filtered$group_walktrap)
 srn_grouped = srn_filtered |>
   # mutate(Name = paste(road_classification_number, name, group_walktrap, sep = " ")) |>
-  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "Unnamed", name), group, cycling_km_go_dutch_quantile, sep = " ")) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "", name), group, Potential_quantile, sep = " ")) |>
    # group_by(name, road_classification_number, road_function, form_of_way, road_classification) |>
   group_by(Name) |>
   summarise(
-    cycling_km_baseline = mean(cycling_km_baseline, na.rm = TRUE),
-    cycling_km_go_dutch = mean(cycling_km_go_dutch, na.rm = TRUE),
+    Baseline = mean(Baseline, na.rm = TRUE),
+    Potential = mean(Potential, na.rm = TRUE),
     segment_length = round(sum(length_m)),
     name = first(name),
     road_classification_number = first(road_classification_number),
     .groups = "drop"
   ) |>
   group_by(name, road_classification_number) |>
-  arrange(desc(cycling_km_go_dutch)) |>
+  arrange(desc(Potential)) |>
   mutate(id = as.character(row_number())) |>
   # Update id so that it's "" if there's only 1 in that group:
-  mutate(id = ifelse(n() == 1, "", id)) |>
-  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "Unnamed", name), id, sep = " ")) |>
+  mutate(
+    id = case_when(
+      n() == 1 ~ "",
+      TRUE ~ id
+    )
+  ) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "", name), id, sep = " ")) |>
   # Remove whitespace before and after Name:
   mutate(Name = trimws(Name)) |>
-  filter(segment_length > 1000) |>
+  filter(segment_length > 1000) |> 
+  # replace double space with single space:
+  mutate(Name = gsub("  ", " ", Name)) |>
   ungroup() |>
-  arrange(desc(cycling_km_go_dutch))
+  arrange(desc(Potential)) |>
+  # Round all numeric cols:
+  mutate(across(where(is.numeric), round))
 head(srn_grouped$Name)  
+
+
+srn_grouped_top = srn_grouped |>
+  head(500) |>
+  # Again, remove id if there's only 1 in that group:
+  group_by(name, road_classification_number) |>
+  mutate(id = as.character(row_number())) |>
+  mutate(
+    id = case_when(
+      n() == 1 ~ "",
+      TRUE ~ id
+    )
+  ) |>
+  mutate(Name = paste(road_classification_number, ifelse(is.na(name), "", name), id, sep = " ")) |>
+  # Remove whitespace before and after Name:
+  mutate(Name = trimws(Name)) |>
+  # replace double space with single space:
+  mutate(Name = gsub("  ", " ", Name)) |>
+  ungroup() |>
+  arrange(desc(Potential))
+head(srn_grouped_top$Name)
 # |>
   # sf::st_cast("LINESTRING")
 ```
 
+In total, `r nrow(srn_grouped)` road sections at least 1km in length (another parameter that can be adjusted) were identified with high cycling potential, with the top 500 shown in the interactive table below.
+
 ```{r}
 #| eval: false
 # failed attempt to split the lines (fails as they require LINESTRING geometry type input)
+
 srn_grouped |>
   sf::st_geometry_type() |>
   table()
@@ -368,40 +431,52 @@ m2 = srn_grouped_split |>
   tm_shape() +
   tm_lines(col = "Name", legend = FALSE)
 tmap_arrange(m1, m2)  
+
 ```
 
-The top 100 roads are as follows:
 
 ```{r}
+#| label: top-roads
 # look at roads with greatest length
 # srn_grouped |>
 #   arrange(desc(segment_length)) |>
 #   select(name, segment_length) |>
 #   head(10)
-srn_top = srn_grouped |>
-  select(Name, segment_length, cycling_km_baseline, cycling_km_go_dutch) |>
-  head(100)
-srn_top |>
-  knitr::kable()
-# srn_top$Name
-# summary(sf::st_length(srn_top))
-# summary(srn_top$cycling_km_go_dutch)
-# summary(sf::st_length(srn_top))
+
+# srn_grouped_top |>
+#   select(Name, Potential, segment_length) |>
+#   sf::st_drop_geometry() |>
+#   knitr::kable()
+
+# interactive version of table:
+library(DT)
+datatable(srn_grouped_top |>
+  transmute(Name, Baseline, Potential, `Length km` = round(segment_length / 1000, 1)) |>
+  sf::st_drop_geometry())
 
 # Split the SRN:
 
 # summary(duplicated(srn_top$name))
-pvars = c("Name", "cycling_km_go_dutch", "segment_length") 
+pvars = c("Name", "Potential", "segment_length") 
 m_top_srn = tm_shape(srn_filtered) +
   tm_lines(col = "darkgrey", lwd = 4) +
-  tm_shape(srn_top) +
-  tm_lines(col = "cycling_km_go_dutch", title = "Go Dutch (km/day)", lwd = 8, popup.vars = pvars, col.scale = tm_scale(breaks = c(10, 15, 25, 50) * 1000, values = "viridis"))
-m_top_srn
+  tm_shape(srn_grouped_top) +
+  tm_lines(col = "Potential", title = "Go Dutch (km/day)", lwd = 8, popup.vars = pvars, col.scale = tm_scale(breaks = c(10, 15, 25, 50) * 1000, values = "viridis"))
+# m_top_srn
 tmap_save(m_top_srn, "m_top_srn.html")
 system("gh release upload v1.0 m_top_srn.html --clobber")
 ```
 
-The interactive map can be viewed by downloading the file at the following link: https://github.com/acteng/severance/releases/download/v1.0/m_top_srn.html
+The interactive map can be viewed by downloading resulting [file](https://github.com/acteng/severance/releases/download/v1.0/m_top_srn.html)
+
+and below:
+
+```{r}
+#| label: m_top_srn
+webshot2::webshot("m_top_srn.html")
+# tmap_mode("view")
+# m_top_srn
+```
 
 
 ```{r}
@@ -457,3 +532,4 @@ plot(srn_split$geometry)
 sf::st_write(srn_split, "srn_split.gpkg", delete_dsn = TRUE)
 system("gh release upload v1.0 srn_split.gpkg --clobber")
 ```
+
