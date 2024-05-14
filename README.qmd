@@ -4,11 +4,11 @@ execute:
   echo: false
   message: false
   warning: false
-# format: gfm
+format: gfm
 # For sharing interactive results:
-format:
-  html:
-    embed-resources: true
+# format:
+#   html:
+#     embed-resources: true
 ---
 
 ```{bash}
@@ -20,6 +20,8 @@ gh release upload v1.0 severance.html --clobber
 ```
 
 # Calculating active travel potential and severance around major transport infrastructure
+
+Note: an interactive version of this report is available [here](https://acteng.github.io/severance/severance.html).
 
 ```{r}
 #| include: false
