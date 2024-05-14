@@ -1,6 +1,6 @@
 ---
 execute: 
-  cache: true
+  cache: refresh
   echo: false
   message: false
   warning: false
@@ -35,7 +35,10 @@ remotes::install_github("robinlovelace/styler.equals")
 remotes::install_dev("tmap")
 ```
 
-This repo builds on work documented in the [srn](https://github.com/acteng/srn) repo, focussing on active travel potential and severance around major transport infrastructure.
+This repo builds on the following work:
+
+- The [srn](https://github.com/acteng/srn) repo, demonstrating how to calculate on active travel potential within land owned by National Highways
+- A demonstration of severance calculation based on a small case study area, in the [robinlovelace/infra-active](https://github.com/robinlovelace/infra-active?tab=readme-ov-file#a-case-study-of-lewes-uckfield) repo
 
 # Input datasets
 
