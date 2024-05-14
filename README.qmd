@@ -397,43 +397,6 @@ head(srn_grouped_top$Name)
 
 In total, `r nrow(srn_grouped)` road sections at least 1km in length (another parameter that can be adjusted) were identified with high cycling potential, with the top 500 shown in the interactive table below.
 
-```{r}
-#| eval: false
-# failed attempt to split the lines (fails as they require LINESTRING geometry type input)
-
-srn_grouped |>
-  sf::st_geometry_type() |>
-  table()
-srn_grouped_linestring = srn_grouped |>
-  sf::st_line_merge()
-srn_grouped_linestring |>
-  sf::st_geometry_type() |>
-  table()
-# srn_grouped_linestring |>
-#   sf::st_cast("LINESTRING") |>
-#   select(Name) |>
-#   plot()
-?st_cast
-# srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000, use_rsgeo = FALSE)
-# nrow(srn_grouped_split) # 1414
-srn_grouped_split$id_km = formatC(seq(nrow(srn_grouped_split)), flag = "00", width = 4)
-head(srn_grouped_split$id_km)
-srn_grouped_split = srn_grouped_split |>
-  mutate(Name = paste(Name, id_km))
-```
-
-```{r}
-#| eval: false
-m1 = srn_grouped |>
-  tm_shape() +
-  tm_lines(col = "Name", legend = FALSE)
-m2 = srn_grouped_split |>
-  tm_shape() +
-  tm_lines(col = "Name", legend = FALSE)
-tmap_arrange(m1, m2)  
-
-```
-
 
 ```{r}
 #| label: top-roads
@@ -515,7 +478,54 @@ pct_desire_lines |>
 pct_desire_lines_high 
 ```
 
-<!-- # Breaking-up SRN into small sections -->
+
+
+
+
+
+
+<!-- # Outakes -->
+
+
+```{r}
+#| eval: false
+# failed attempt to split the lines (fails as they require LINESTRING geometry type input)
+
+srn_grouped |>
+  sf::st_geometry_type() |>
+  table()
+srn_grouped_linestring = srn_grouped |>
+  sf::st_line_merge()
+srn_grouped_linestring |>
+  sf::st_geometry_type() |>
+  table()
+# srn_grouped_linestring |>
+#   sf::st_cast("LINESTRING") |>
+#   select(Name) |>
+#   plot()
+?st_cast
+# srn_grouped_split = srn_top_split = stplanr::line_segment(srn_grouped_linestring, segment_length = 1000, use_rsgeo = FALSE)
+# nrow(srn_grouped_split) # 1414
+srn_grouped_split$id_km = formatC(seq(nrow(srn_grouped_split)), flag = "00", width = 4)
+head(srn_grouped_split$id_km)
+srn_grouped_split = srn_grouped_split |>
+  mutate(Name = paste(Name, id_km))
+```
+
+```{r}
+#| eval: false
+m1 = srn_grouped |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+m2 = srn_grouped_split |>
+  tm_shape() +
+  tm_lines(col = "Name", legend = FALSE)
+tmap_arrange(m1, m2)  
+
+```
+
+
+<!-- ## Breaking-up SRN into small sections -->
 
 
 ```{r}
