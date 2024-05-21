@@ -461,7 +461,7 @@ if (!file.exists("pct_desire_lines.gpkg")) {
   system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
   if (!file.exists("pct_desire_lines.gpkg")) {
     message("Download the desire lines data from the releases")
-    stop()
+    system("gh release download v1.0 --pattern pct_desire_lines.gpkg")
   }
 }
 pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
