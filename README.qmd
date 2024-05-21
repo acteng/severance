@@ -1,6 +1,6 @@
 ---
 execute: 
-  cache: refresh
+  cache: true
   echo: false
   message: false
   warning: false
@@ -537,7 +537,7 @@ pct_desire_lines |>
 ```
 
 Because of the computational resources needed to process the national desire lines dataset, we'll focus on case study areas in this section.
-The ~20k desire lines in the Manchester area are shown below.
+A sample of the ~20k desire lines in the Manchester area are shown below.
 
 ```{r}
 dl_mcr = pct_desire_lines |>
@@ -553,7 +553,7 @@ srn_mcr = srn_wgs[dl_mcr, ]
 
 ```{r}
 dl_mcr |>
-  filter(all > 5) |>
+  filter(all > 10) |>
   tm_shape() +
   tm_lines(
     col = c("% active"),
@@ -567,7 +567,10 @@ dl_mcr |>
 ```
 
 Each road segment was joined to intersecting desire lines, allowing summary statistics from the desire lines to be assigned to each road segment.
-We calculated the angle (azimuth, relative to North) of each desire line and each road segment, allowing us to select only those desire lines that run roughly perpendicular to the road segments (with a minum angle of 20 degrees initially).
+We calculated the angle (azimuth, relative to North) of each desire line and each road segment, allowing us to select only those desire lines that run roughly perpendicular to the road segments (with a minum angle difference of 20 degrees in the results shown).
+
+The resulting summary data allows identification of roads with high levels of current active travel (indicating a crossing that could be in need of maintenance), active travel potential (with the difference between current levels and potential indicating severance and the need for crossings), and current number of trips by mode.
+Static maps for current walking levels and other modes are illustrated below.
 
 ```{r}
 dl_mcr$angle_d = stplanr::line_bearing(dl_mcr, bidirectional = TRUE)
@@ -580,7 +583,7 @@ dl_mcr_joined = sf::st_join(
   join = sf::st_intersects
 )
 toc = Sys.time()
-toc - tic
+# toc - tic
 # Filter out desire lines in which the anglular difference is less than 20 degrees:
 dl_mcr_joined = dl_mcr_joined |>
   filter(abs(angle_d - angle_m) > 20)
@@ -596,26 +599,56 @@ dl_mcr_joined_aggregated = dl_mcr_joined |>
     .groups = "drop"
   )
 srn_mcr_joined = left_join(srn_mcr, dl_mcr_joined_aggregated, by = "id")
-srn_mcr_joined |>
-  select(foot, bicycle, dutch_slc) |>
-  sf::st_drop_geometry() |>
-  summary()
+# srn_mcr_joined |>
+#   select(foot, bicycle, dutch_slc) |>
+#   sf::st_drop_geometry() |>
+#   summary()
 ```
 
 
 ```{r}
-tmap_mode("view")
-m2 = srn_mcr_joined |>
+tmap_mode("plot")
+m1 = srn_mcr_joined |>
   tm_shape() +
   tm_lines(
-    col = c("foot", "bicycle", "dutch_slc"),
-    lwd = "all",
+    col = c("foot"),
+    lwd = 9,
     title = "Active Travel Potential",
     tm_scale(breaks = c(0, 10, 100, 1000, 10000), values = "viridis"),
     col.legend = tm_legend(position = tm_pos_out())
   )
-tmap_save(m1, "srn_mcr_joined.html")
+m1
+m2 = srn_mcr_joined |>
+  tm_shape() +
+  tm_lines(
+    col = c("all", "foot", "bicycle", "dutch_slc"),
+    lwd = 9,
+    title = "Active Travel Potential",
+    tm_scale(breaks = c(0, 10, 100, 1000, 10000), values = "viridis"),
+    col.legend = tm_legend(show = FALSE),
+    popup.vars = c("all", "foot", "bicycle", "dutch_slc", "id")
+  ) +
+  tm_facets(nrows = 2)
+m2
+tmap_save(m1, "srn_mcr_joined_foot.html")
 ```
+
+The following table summarises the results in tabular form, with National Highways ID identifying the road segment ordered by cycling potential (an interactive version in the HTML version of the document allows flexible ranking and filtering).
+
+```{r}
+#| label: severence-mode-table
+srn_mcr_joined |>
+  select(road_classification_number, all, foot, bicycle, dutch_slc, id) |>
+  arrange(desc(foot)) |>
+  sf::st_drop_geometry() |>
+  mutate_if(is.numeric, round) |>
+  datatable()
+```
+
+
+
+
+
 
 
 
