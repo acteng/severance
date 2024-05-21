@@ -16,7 +16,7 @@ format:
 # rename interactive version of html to severance.html
 cp README.html severance.html
 gh release upload v1.0 severance.html --clobber
-# see https://github.com/acteng/severance/releases/tag/v1.0/severance.html
+# see https://github.com/acteng/severance/releases/download/v1.0/severance.html
 ```
 
 # Calculating active travel potential and severance around major transport infrastructure
@@ -570,7 +570,7 @@ Each road segment was joined to intersecting desire lines, allowing summary stat
 We calculated the angle (azimuth, relative to North) of each desire line and each road segment, allowing us to select only those desire lines that run roughly perpendicular to the road segments (with a minum angle difference of 20 degrees in the results shown).
 
 The resulting summary data allows identification of roads with high levels of current active travel (indicating a crossing that could be in need of maintenance), active travel potential (with the difference between current levels and potential indicating severance and the need for crossings), and current number of trips by mode.
-Static maps for current walking levels and other modes are illustrated below.
+Static maps for current walking levels and other modes are illustrated below. See the [GitHub release](https://github.com/acteng/severance/releases/download/v1.0/srn_mcr_joined_foot.html) for an interactive version of the map.
 
 ```{r}
 dl_mcr$angle_d = stplanr::line_bearing(dl_mcr, bidirectional = TRUE)
@@ -631,6 +631,9 @@ m2 = srn_mcr_joined |>
   tm_facets(nrows = 2)
 m2
 tmap_save(m1, "srn_mcr_joined_foot.html")
+# upload
+system("gh release upload v1.0 srn_mcr_joined_foot.html --clobber")
+# URL: https://github.com/acteng/severance/releases/download/v1.0/srn_mcr_joined_foot.html
 ```
 
 The following table summarises the results in tabular form, with National Highways ID identifying the road segment ordered by cycling potential (an interactive version in the HTML version of the document allows flexible ranking and filtering).
