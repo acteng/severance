@@ -4,11 +4,11 @@ execute:
   echo: false
   message: false
   warning: false
-format: gfm
+# format: gfm
 # For sharing interactive results:
-# format:
-#   html:
-#     embed-resources: true
+format:
+  html:
+    embed-resources: true
 ---
 
 ```{bash}
