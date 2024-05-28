@@ -773,6 +773,83 @@ In terms of number of trips, there are `r sum(dl_mcr_joined2_walk$all) |> format
 In terms of observed walking and cycling levels and cycling potential, there are `r sum(dl_mcr_joined$foot) |> format(big.mark = ",")` walking trips, `r sum(dl_mcr_joined$bicycle) |> format(big.mark = ",")` cycling trips, and `r round(sum(dl_mcr_joined$dutch_slc)) |> format(big.mark = ",")` trips under the Go Dutch scenario.
 
 
+```{r}
+# Let's get the PCT values for each segment in manchester to observe the correlation between PCT and desire lines approach:
+srn_mcr_joined3 = left_join(
+  srn_mcr_joined,
+  srn_mcr_joined2 |>
+    select(id, all_walkable, all_cyclable) |>
+    sf::st_drop_geometry(),
+  by = "id"
+)
+srn_mcr_joined3_centroids = sf::st_centroid(srn_mcr_joined3)
+srn_mcr_joined3_distances = sf::st_join(
+  srn_mcr_joined3_centroids,
+  pct_centroids_near,
+  join = sf::st_is_within_distance,
+  dist = 5000
+)
+
+srn_mcr_distances_aggregated = srn_mcr_joined3_distances |>
+  sf::st_drop_geometry() |>
+  group_by(id) |>
+  summarise(
+    Baseline = mean(cycling_km_baseline, na.rm = TRUE),
+    Potential = mean(cycling_km_go_dutch, na.rm = TRUE),
+    .groups = "drop"
+  )
+srn_mcr_joined4 = left_join(srn_mcr_joined3, srn_mcr_distances_aggregated, by = "id")
+```
+
+```{r}
+#| include: false
+#| label: pct-vs-desire-lines
+# Plot Baseline from PCT vs Baseline from desire lines approach:
+# srn_mcr_joined4 |>
+#   ggplot(aes(Baseline, bicycle)) +
+#   geom_point() +
+#   # lm:
+#   geom_smooth(method = "lm", se = FALSE) +
+#   labs(
+#     x = "Baseline (PCT)",
+#     y = "Baseline (Desire Lines)"
+#   )
+# and potential:
+srn_mcr_joined4 |>
+  ggplot(aes(Potential, dutch_slc)) +
+  geom_point() +
+  # lm:
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    x = "Potential (PCT)",
+    y = "Potential (Desire Lines)"
+  )
+m1 = lm(dutch_slc ~ Potential, data = srn_mcr_joined4)
+# R^2:
+summary(m1)$r.squared
+# # Predict national dutch_slc based on all SRN Potential:
+# dutch_slc_predicted = predict(m1, newdata = srn_grouped)
+# summary(dutch_slc_predicted)
+# sum(dutch_slc_predicted)
+srn_grouped_mcr = srn_grouped[srn_grouped$road_classification_number %in% srn_mcr_joined4$road_classification_number, ]
+proportion_total_cycling_potential_mcr = sum(srn_grouped_mcr$Potential) / sum(srn_grouped$Potential)
+```
+
+Around 12% of active travel on the SRN is represented by the desire lines in the Manchester case study area.
+Assuming that the relationship between cycling potential from the PCT and the desire lines approach is consistent across the UK, we can estimate the total walking and cycling potential for the SRN in the UK.
+We estimate that there are around 200k people who could cycle commute each year if suitable cycling infrastructure were provided on the SRN, including crossings in appropriate places, and around 10k additional people could work to work.
+These are preliminary estimates that ignore the potential for active travel integration with public transport, only considering the potential for active travel directly to work. 
+The potential would be much greater accounting for other trip purposes, including travel to school, travel to shops, and leisure trips.
+
+```{r}
+total_cycling_5km = sum(srn_mcr_joined4$all_cyclable, na.rm = TRUE) / proportion_total_cycling_potential_mcr
+total_walking_1km = sum(srn_mcr_joined4$all_walkable, na.rm = TRUE) / proportion_total_cycling_potential_mcr
+```
+
+
+
+
+
 
 
 <!-- # Outakes -->
