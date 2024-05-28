@@ -623,6 +623,7 @@ dl_mcr = pct_desire_lines |>
 srn_wgs = sf::st_transform(srn, 4326)
 sf::st_crs(dl_mcr) = 4326
 srn_mcr = srn_wgs[dl_mcr, ]
+proportion_srn_in_mcr = nrow(srn_mcr) / nrow(srn_wgs)
 ```
 
 ```{r}
@@ -833,13 +834,15 @@ summary(m1)$r.squared
 # sum(dutch_slc_predicted)
 srn_grouped_mcr = srn_grouped[srn_grouped$road_classification_number %in% srn_mcr_joined4$road_classification_number, ]
 proportion_total_cycling_potential_mcr = sum(srn_grouped_mcr$Potential) / sum(srn_grouped$Potential)
+proportion_of_srn_by_length = sum(srn_mcr$length_m) / sum(srn$length_m)
 ```
 
-Around 12% of active travel on the SRN is represented by the desire lines in the Manchester case study area.
+Around 12% of active travel on the SRN is represented in the Greater Manchester area (compared with only around 1.5% of the SRN by length).
 Assuming that the relationship between cycling potential from the PCT and the desire lines approach is consistent across the UK, we can estimate the total walking and cycling potential for the SRN in the UK.
-We estimate that there are around 200k people who could cycle commute each year if suitable cycling infrastructure were provided on the SRN, including crossings in appropriate places, and around 10k additional people could work to work.
+We estimate that there are around 200k people who could travel to work by active modes (mostly cycling) if suitable infrastructure were provided on the SRN, including crossings in appropriate places.
 These are preliminary estimates that ignore the potential for active travel integration with public transport, only considering the potential for active travel directly to work. 
 The potential would be much greater accounting for other trip purposes, including travel to school, travel to shops, and leisure trips.
+Accounting for these factors, and given that commuting accounts for only around 1/5th of trips, we estimate that around 1 million people could regularly walk or cycle in or around the SRN in the UK if appropriate walking and cycling infrastructure were provided.
 
 ```{r}
 total_cycling_5km = sum(srn_mcr_joined4$all_cyclable, na.rm = TRUE) / proportion_total_cycling_potential_mcr
