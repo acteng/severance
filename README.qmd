@@ -1,14 +1,14 @@
 ---
 execute: 
-  cache: refresh
+  cache: true
   echo: false
   message: false
   warning: false
-format: gfm
+# format: gfm
 # For sharing interactive results:
-# format:
-#   html:
-#     embed-resources: true
+format:
+  html:
+    embed-resources: true
 ---
 
 ```{bash}
@@ -16,7 +16,7 @@ format: gfm
 # rename interactive version of html to severance.html
 cp README.html severance.html
 gh release upload v1.0 severance.html --clobber
-# see https://github.com/acteng/severance/releases/tag/v1.0/severance.html
+# see https://github.com/acteng/severance/releases/download/v1.0/severance.html
 ```
 
 # Calculating active travel potential and severance around major transport infrastructure
@@ -154,7 +154,7 @@ mrn_srn = rbind(
 # mrn_srn |>
 #   ggplot() +
 #   geom_sf(aes(color = infrastructure_type)) +
-#   theme_void() 
+#   theme_void()
 names(mrn_srn)
 mrn |>
   tm_shape() +
@@ -210,7 +210,7 @@ pct_raster_go_dutch = terra::rasterize(pct, pct_raster, field = "cycling_km_go_d
 # plot(pct_raster_baseline, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
 # plot(pct_raster_go_dutch, type = "interval", breaks = c(0, 1, 2, 5, 10, 20, 100)*1000)
 # par(mfrow = c(1, 1))
-brks = c(0, 1, 5, 10, 20, 100)*1000
+brks = c(0, 1, 5, 10, 20, 100) * 1000
 m1 = tm_shape(pct_raster_baseline) +
   tm_raster("cycling_km_baseline", palette = "viridis", breaks = brks, title = "Baseline (km/day)")
 m2 = tm_shape(pct_raster_go_dutch) +
@@ -224,25 +224,22 @@ This approach allows identification of sections of the SRN and MRN in areas with
 ```{r}
 #| cache: false
 if (!file.exists("pct_raster_sf.gpkg")) {
-
-
-pct_raster_sf_baseline = pct_raster_baseline |>
-  terra::as.points() |>
-  sf::st_as_sf()
-pct_raster_sf_go_dutch = pct_raster_go_dutch |>
-  terra::as.points() |>
-  sf::st_as_sf()
-pct_raster_sf = sf::st_sf(
-  data.frame(
-    cycling_km_baseline = pct_raster_sf_baseline$cycling_km_baseline,
-    cycling_km_go_dutch = pct_raster_sf_go_dutch$cycling_km_go_dutch,
-    geometry = pct_raster_sf_baseline$geometry
+  pct_raster_sf_baseline = pct_raster_baseline |>
+    terra::as.points() |>
+    sf::st_as_sf()
+  pct_raster_sf_go_dutch = pct_raster_go_dutch |>
+    terra::as.points() |>
+    sf::st_as_sf()
+  pct_raster_sf = sf::st_sf(
+    data.frame(
+      cycling_km_baseline = pct_raster_sf_baseline$cycling_km_baseline,
+      cycling_km_go_dutch = pct_raster_sf_go_dutch$cycling_km_go_dutch,
+      geometry = pct_raster_sf_baseline$geometry
+    )
   )
-)
-sf::st_write(pct_raster_sf, "pct_raster_sf.gpkg", delete_dsn = TRUE)
+  sf::st_write(pct_raster_sf, "pct_raster_sf.gpkg", delete_dsn = TRUE)
 }
 pct_raster_sf = sf::read_sf("pct_raster_sf.gpkg")
-
 ```
 
 ```{r}
@@ -251,10 +248,10 @@ pct_high_potential_points = pct_raster_sf |>
   filter(cycling_km_go_dutch > 5000)
 pct_high_buffer = pct_high_potential_points |>
   sf::st_buffer(5000) |>
-  sf::st_union() 
+  sf::st_union()
 if (!file.exists("mrn_srn_high.gpkg")) {
-mrn_srn_high = mrn_srn[pct_high_buffer, ]
-sf::write_sf(mrn_srn_high, "mrn_srn_high.gpkg", delete_dsn = TRUE)
+  mrn_srn_high = mrn_srn[pct_high_buffer, ]
+  sf::write_sf(mrn_srn_high, "mrn_srn_high.gpkg", delete_dsn = TRUE)
 }
 mrn_srn_high = sf::read_sf("mrn_srn_high.gpkg")
 tm_shape(mrn_srn) +
@@ -279,8 +276,8 @@ pct_centroids_near = pct_raster_sf[srn_buffer, ]
 # centroids for speed of calculation:
 srn$length_m = sf::st_length(srn) |> as.numeric()
 # summary(srn$length_m)
-#     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
-#     0.02    45.42   142.10   388.39   405.19 19085.20 
+#     Min.  1st Qu.   Median     Mean  3rd Qu.     Max.
+#     0.02    45.42   142.10   388.39   405.19 19085.20
 srn_centroids = sf::st_centroid(srn)
 srn_distances = sf::st_join(
   srn_centroids,
@@ -300,13 +297,14 @@ srn_distances_aggregated = srn_distances |>
 srn_joined = left_join(srn, srn_distances_aggregated, by = "id")
 
 tm_shape(srn_joined) +
-  tm_lines(col = c(
-    "Baseline",
-    "Potential"
-  ),
-  title = "Go Dutch (km/day)",
-  col.scale = tm_scale(breaks = brks, values = "viridis")
-)
+  tm_lines(
+    col = c(
+      "Baseline",
+      "Potential"
+    ),
+    title = "Go Dutch (km/day)",
+    col.scale = tm_scale(breaks = brks, values = "viridis")
+  )
 ```
 
 Note: the units of the values presented above are in estimated km cycling per day per 5 km grid cell, derived from the route network layer in the PCT, representing active travel potential for utility cycling in the vicinity of roads (estimated commuter cycling potential is a function of number of cyclable trips to work and is a good proxy for utility cycling potential and to a lesser extent leisure cycling potential).
@@ -323,18 +321,18 @@ In cases where the same road (e.g. M56) has multiple sections with high cycling 
 ```{r}
 #| include: false
 summary(sf::st_length(srn_joined))
-    # Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
-    # 0.02    45.42   142.10   388.39   405.19 19085.20 
+# Min.  1st Qu.   Median     Mean  3rd Qu.     Max.
+# 0.02    45.42   142.10   388.39   405.19 19085.20
 summary(srn_joined$Baseline)
-  #  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
-  #   0.0   715.7  2445.1  5009.3  7171.3 50691.6   11102 
+#  Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's
+#   0.0   715.7  2445.1  5009.3  7171.3 50691.6   11102
 srn_filtered = srn_joined |>
   # filter(length_m > 200) |>
   filter(Potential > 2000) |>
   # Create categorical variable with cycling potential split into 10 categories:
   # filter(!is.na(name))
   # Quantiles of cycling potential:
-  mutate(Potential_quantile = cut(Potential, breaks = quantile(Potential, probs = seq(0, 1, 0.05), na.rm = TRUE), include.lowest = TRUE, labels = FALSE)) 
+  mutate(Potential_quantile = cut(Potential, breaks = quantile(Potential, probs = seq(0, 1, 0.05), na.rm = TRUE), include.lowest = TRUE, labels = FALSE))
 summary(srn_filtered$Potential_quantile)
 srn_filtered$group = stplanr::rnet_group(srn_filtered)
 # srn_filtered$group_fast = stplanr::rnet_group(srn_filtered, igraph::cluster_fast_greedy)
@@ -344,7 +342,7 @@ srn_filtered$group = stplanr::rnet_group(srn_filtered)
 srn_grouped = srn_filtered |>
   # mutate(Name = paste(road_classification_number, name, group_walktrap, sep = " ")) |>
   mutate(Name = paste(road_classification_number, ifelse(is.na(name), "", name), group, Potential_quantile, sep = " ")) |>
-   # group_by(name, road_classification_number, road_function, form_of_way, road_classification) |>
+  # group_by(name, road_classification_number, road_function, form_of_way, road_classification) |>
   group_by(Name) |>
   summarise(
     Baseline = mean(Baseline, na.rm = TRUE),
@@ -367,14 +365,14 @@ srn_grouped = srn_filtered |>
   mutate(Name = paste(road_classification_number, ifelse(is.na(name), "", name), id, sep = " ")) |>
   # Remove whitespace before and after Name:
   mutate(Name = trimws(Name)) |>
-  filter(segment_length > 1000) |> 
+  filter(segment_length > 1000) |>
   # replace double space with single space:
   mutate(Name = gsub("  ", " ", Name)) |>
   ungroup() |>
   arrange(desc(Potential)) |>
   # Round all numeric cols:
   mutate(across(where(is.numeric), round))
-head(srn_grouped$Name)  
+head(srn_grouped$Name)
 
 
 srn_grouped_top = srn_grouped |>
@@ -397,7 +395,7 @@ srn_grouped_top = srn_grouped |>
   arrange(desc(Potential))
 head(srn_grouped_top$Name)
 # |>
-  # sf::st_cast("LINESTRING")
+# sf::st_cast("LINESTRING")
 ```
 
 In total, `r nrow(srn_grouped)` road sections at least 1km in length (another parameter that can be adjusted) were identified with high cycling potential, with the top 500 shown in the interactive table below.
@@ -425,7 +423,7 @@ datatable(srn_grouped_top |>
 # Split the SRN:
 
 # summary(duplicated(srn_top$name))
-pvars = c("Name", "Potential", "segment_length") 
+pvars = c("Name", "Potential", "segment_length")
 m_top_srn = tm_shape(srn_filtered) +
   tm_lines(col = "darkgrey", lwd = 4) +
   tm_shape(srn_grouped_top) +
@@ -457,45 +455,44 @@ browseURL("m_top_srn.html")
 ```{r}
 # include: false
 if (!file.exists("pct_desire_lines.gpkg")) {
-pct_desire_lines = pct::get_pct(layer = "l", national = TRUE)
-sf::st_crs(pct_desire_lines) = 4326
-sf::write_sf(pct_desire_lines, "pct_desire_lines.gpkg", delete_dsn = TRUE)
-system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
-if(!file.exists("pct_desire_lines.gpkg")) {
-  message("Download the desire lines data from the releases")
-  stop()
-}
+  pct_desire_lines = pct::get_pct(layer = "l", national = TRUE)
+  sf::st_crs(pct_desire_lines) = 4326
+  sf::write_sf(pct_desire_lines, "pct_desire_lines.gpkg", delete_dsn = TRUE)
+  system("gh release upload v1.0 pct_desire_lines.gpkg --clobber")
+  if (!file.exists("pct_desire_lines.gpkg")) {
+    message("Download the desire lines data from the releases")
+    system("gh release download v1.0 --pattern pct_desire_lines.gpkg")
+  }
 }
 pct_desire_lines = sf::read_sf("pct_desire_lines.gpkg")
 # dim(pct_desire_lines)
 # [1] 1408275     146
 # names(pct_desire_lines)
-#   [1] "id"                      "geo_code1"              
-#   [3] "geo_code2"               "geo_name1"              
-#   [5] "geo_name2"               "lad11cd1"               
-#   [7] "lad11cd2"                "lad_name1"              
-#   [9] "lad_name2"               "all"                    
-#  [11] "bicycle"                 "foot"                   
-#  [13] "car_driver"              "car_passenger"          
-#  [15] "motorbike"               "train_tube"             
-#  [17] "bus"                     "taxi_other"             
-#  [19] "govtarget_slc"           "govtarget_sic"          
-#  [21] "govtarget_slw"           "govtarget_siw"          
-#  [23] "govtarget_sld"           "govtarget_sid"          
-#  [25] "govtarget_slp"           "govtarget_sip"          
-#  [27] "govtarget_slm"           "govtarget_sim"          
-#  [29] "govtarget_slpt"          "govtarget_sipt"         
-#  [31] "govnearmkt_slc"          "govnearmkt_sic" 
+#   [1] "id"                      "geo_code1"
+#   [3] "geo_code2"               "geo_name1"
+#   [5] "geo_name2"               "lad11cd1"
+#   [7] "lad11cd2"                "lad_name1"
+#   [9] "lad_name2"               "all"
+#  [11] "bicycle"                 "foot"
+#  [13] "car_driver"              "car_passenger"
+#  [15] "motorbike"               "train_tube"
+#  [17] "bus"                     "taxi_other"
+#  [19] "govtarget_slc"           "govtarget_sic"
+#  [21] "govtarget_slw"           "govtarget_siw"
+#  [23] "govtarget_sld"           "govtarget_sid"
+#  [25] "govtarget_slp"           "govtarget_sip"
+#  [27] "govtarget_slm"           "govtarget_sim"
+#  [29] "govtarget_slpt"          "govtarget_sipt"
+#  [31] "govnearmkt_slc"          "govnearmkt_sic"
 #  ...
-#  [127] "gendereq_sicarkm"        "gendereq_sico2"         
-# [129] "dutch_sicarkm"           "dutch_sico2"            
-# [131] "ebike_sicarkm"           "ebike_sico2"            
-# [133] "e_dist_km"               "rf_dist_km"             
-# [135] "rq_dist_km"              "dist_rf_e"              
-# [137] "dist_rq_rf"              "rf_avslope_perc"        
-# [139] "rq_avslope_perc"         "rf_time_min"            
-# [141] "rq_time_min"             "geom"  
-
+#  [127] "gendereq_sicarkm"        "gendereq_sico2"
+# [129] "dutch_sicarkm"           "dutch_sico2"
+# [131] "ebike_sicarkm"           "ebike_sico2"
+# [133] "e_dist_km"               "rf_dist_km"
+# [135] "rq_dist_km"              "dist_rf_e"
+# [137] "dist_rq_rf"              "rf_avslope_perc"
+# [139] "rq_avslope_perc"         "rf_time_min"
+# [141] "rq_time_min"             "geom"
 ```
 
 The results presented in the previous section are based on estimates of active travel (commuter cycling) potential at the road network level in the vicinity (around 5 km) of each road segment.
@@ -518,10 +515,10 @@ pct_desire_lines = pct_desire_lines |>
     `% cycling` = bicycle / all,
     `% walking` = foot / all,
     `% car` = (car_driver + car_passenger) / all,
-    `% active` = (`% cycling` + `% walking`) 
+    `% active` = (`% cycling` + `% walking`)
   ) |>
   # multiply all cols starting with % by 100:
-  mutate(across(starts_with("%"), ~ round(. * 100, 1))) 
+  mutate(across(starts_with("%"), ~ round(. * 100, 1)))
 # summary(pct_desire_lines$`% active`)
 brks_active = c(0, 2, 5, 10, 100)
 pct_desire_lines |>
@@ -535,17 +532,17 @@ pct_desire_lines |>
     title = "% Active Travel",
     tm_scale(breaks = brks_active, values = "viridis"),
     col.legend = tm_legend(position = tm_pos_out())
-    ) +
+  ) +
   tm_facets_wrap(ncols = 4)
 ```
 
 Because of the computational resources needed to process the national desire lines dataset, we'll focus on case study areas in this section.
-The ~20k desire lines in the Manchester area are shown below.
+A sample of the ~20k desire lines in the Manchester area are shown below.
 
 ```{r}
 dl_mcr = pct_desire_lines |>
   filter(str_detect(lad_name1, "Manchester")) |>
-  arrange(`% active`) 
+  arrange(`% active`)
 ```
 
 ```{r}
@@ -555,21 +552,107 @@ srn_mcr = srn_wgs[dl_mcr, ]
 ```
 
 ```{r}
-
 dl_mcr |>
-  filter(all > 5) |>
+  filter(all > 10) |>
   tm_shape() +
   tm_lines(
     col = c("% active"),
     title = "% Active Travel",
     tm_scale(breaks = brks_active, values = "viridis"),
     col.legend = tm_legend(position = tm_pos_out())
-    ) +
+  ) +
   tm_shape(srn_mcr) +
   tm_lines(col = "road_classification_number", lwd = 5) +
-  tm_scale_bar() 
-
+  tm_scale_bar()
 ```
+
+Each road segment was joined to intersecting desire lines, allowing summary statistics from the desire lines to be assigned to each road segment.
+We calculated the angle (azimuth, relative to North) of each desire line and each road segment, allowing us to select only those desire lines that run roughly perpendicular to the road segments (with a minum angle difference of 20 degrees in the results shown).
+
+The resulting summary data allows identification of roads with high levels of current active travel (indicating a crossing that could be in need of maintenance), active travel potential (with the difference between current levels and potential indicating severance and the need for crossings), and current number of trips by mode.
+Static maps for current walking levels and other modes are illustrated below. See the [GitHub release](https://github.com/acteng/severance/releases/download/v1.0/srn_mcr_joined_foot.html) for an interactive version of the map.
+
+```{r}
+dl_mcr$angle_d = stplanr::line_bearing(dl_mcr, bidirectional = TRUE)
+srn_mcr$angle_m = stplanr::line_bearing(srn_mcr, bidirectional = TRUE)
+tic = Sys.time()
+dl_mcr_joined = sf::st_join(
+  srn_mcr,
+  dl_mcr |>
+    select(all, foot, bicycle, dutch_slc, angle_d),
+  join = sf::st_intersects
+)
+toc = Sys.time()
+# toc - tic
+# Filter out desire lines in which the anglular difference is less than 20 degrees:
+dl_mcr_joined = dl_mcr_joined |>
+  filter(abs(angle_d - angle_m) > 20)
+# Group by road segment and calculate the sum of active travel potential:
+dl_mcr_joined_aggregated = dl_mcr_joined |>
+  sf::st_drop_geometry() |>
+  group_by(id) |>
+  summarise(
+    all = sum(all, na.rm = TRUE),
+    foot = sum(foot, na.rm = TRUE),
+    bicycle = sum(bicycle, na.rm = TRUE),
+    dutch_slc = sum(dutch_slc, na.rm = TRUE),
+    .groups = "drop"
+  )
+srn_mcr_joined = left_join(srn_mcr, dl_mcr_joined_aggregated, by = "id")
+# srn_mcr_joined |>
+#   select(foot, bicycle, dutch_slc) |>
+#   sf::st_drop_geometry() |>
+#   summary()
+```
+
+
+```{r}
+tmap_mode("plot")
+m1 = srn_mcr_joined |>
+  tm_shape() +
+  tm_lines(
+    col = c("foot"),
+    lwd = 9,
+    title = "Active Travel Potential",
+    tm_scale(breaks = c(0, 10, 100, 1000, 10000), values = "viridis"),
+    col.legend = tm_legend(position = tm_pos_out())
+  )
+m1
+m2 = srn_mcr_joined |>
+  tm_shape() +
+  tm_lines(
+    col = c("all", "foot", "bicycle", "dutch_slc"),
+    lwd = 9,
+    title = "Active Travel Potential",
+    tm_scale(breaks = c(0, 10, 100, 1000, 10000), values = "viridis"),
+    col.legend = tm_legend(show = FALSE),
+    popup.vars = c("all", "foot", "bicycle", "dutch_slc", "id")
+  ) +
+  tm_facets(nrows = 2)
+m2
+tmap_save(m1, "srn_mcr_joined_foot.html")
+# upload
+system("gh release upload v1.0 srn_mcr_joined_foot.html --clobber")
+# URL: https://github.com/acteng/severance/releases/download/v1.0/srn_mcr_joined_foot.html
+```
+
+The following table summarises the results in tabular form, with National Highways ID identifying the road segment ordered by cycling potential (an interactive version in the HTML version of the document allows flexible ranking and filtering).
+
+```{r}
+#| label: severence-mode-table
+srn_mcr_joined |>
+  select(road_classification_number, all, foot, bicycle, dutch_slc, id) |>
+  arrange(desc(foot)) |>
+  sf::st_drop_geometry() |>
+  mutate_if(is.numeric, round) |>
+  datatable()
+```
+
+
+
+
+
+
 
 
 <!-- # Outakes -->
@@ -608,9 +691,7 @@ m1 = srn_grouped |>
 m2 = srn_grouped_split |>
   tm_shape() +
   tm_lines(col = "Name", legend = FALSE)
-tmap_arrange(m1, m2)  
-
-
+tmap_arrange(m1, m2)
 ```
 
 
@@ -643,13 +724,12 @@ pct_desire_lines$pct_desire_lines_computed = pct::uptake_pct_godutch_2020(
   gradient = pct_desire_lines$rf_avslope_perc
 )
 pct_desire_lines = pct_desire_lines |>
-  
-# correlation between computed and observed:
-cor(pct_desire_lines$pct_desire_lines_computed, pct_desire_lines$dutch_slc / pct_desire_lines$all)
+  # correlation between computed and observed:
+  cor(pct_desire_lines$pct_desire_lines_computed, pct_desire_lines$dutch_slc / pct_desire_lines$all)
 pct_desire_lines |>
   sample_n(10000) |>
   ggplot(aes(rf_dist_km, dutch_slc / all)) +
   geom_point() +
-  geom_smooth() 
-pct_desire_lines_high 
+  geom_smooth()
+pct_desire_lines_high
 ```
